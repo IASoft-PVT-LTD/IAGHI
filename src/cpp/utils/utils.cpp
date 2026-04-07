@@ -17,8 +17,6 @@
 
 #include <iaghi/utils.hpp>
 
-#include "../../../out/build/IAGHI-x64-windows/_deps/sdl-src/src/video/khronos/vulkan/vulkan_core.h"
-
 #include <glslang/Public/ShaderLang.h>
 #include <glslang/Public/ResourceLimits.h>
 #include <SPIRV/GlslangToSpv.h>
