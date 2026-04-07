@@ -318,6 +318,7 @@ namespace ghi
 
   auto is_depth_format(EFormat format) -> bool;
   auto is_compressed_format(EFormat format) -> bool;
+  auto get_format_byte_size(EFormat format) -> u32;
   auto get_compressed_format_block_size(EFormat format) -> u32;
 
   auto create_samplers(Device device, u32 count, const SamplerDesc *descs, Sampler *out_handles) -> Result<void>;

@@ -26,6 +26,7 @@ namespace ghi
     result.m_extent = extent;
     result.m_layer_count = layer_count;
     result.m_mip_level_count = mip_level_count;
+    result.m_format_enum = VulkanBackend::map_vk_to_format_enum(format);
 
     VkImageCreateInfo create_info{
         .sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
@@ -61,13 +62,7 @@ namespace ghi
         .preferredFlags = VMA_MEMORY_USAGE_GPU_ONLY,
     };
 
-    VK_CALL(vkCreateImage(device, &create_info, nullptr, &result.m_handle), "creating image");
-
-    VK_CALL(vmaAllocateMemoryForImage(allocator, result.m_handle, &alloc_info, &result.m_allocation,
-                                      &result.m_allocation_info),
-            "allocating image memory");
-    VK_CALL(vkBindImageMemory(device, result.m_handle, result.m_allocation_info.deviceMemory, 0),
-            "binding image memory");
+    VK_CALL(vmaCreateImage(allocator, &create_info, &alloc_info, &result.m_handle, &result.m_allocation, &result.m_allocation_info), "creating and allocating image");
 
     view_create_info.image = result.m_handle;
     VK_CALL(vkCreateImageView(device, &view_create_info, nullptr, &result.m_view), "creating image view");

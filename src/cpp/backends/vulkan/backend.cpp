@@ -183,32 +183,32 @@ namespace ghi
   {
     VkBufferUsageFlags result = 0;
 
-    if (usage_flags & static_cast<uint32_t>(EBufferUsage::Vertex))
+    if (usage_flags & static_cast<u32>(EBufferUsage::Vertex))
     {
       result |= VK_BUFFER_USAGE_VERTEX_BUFFER_BIT;
     }
 
-    if (usage_flags & static_cast<uint32_t>(EBufferUsage::Index))
+    if (usage_flags & static_cast<u32>(EBufferUsage::Index))
     {
       result |= VK_BUFFER_USAGE_INDEX_BUFFER_BIT;
     }
 
-    if (usage_flags & static_cast<uint32_t>(EBufferUsage::Uniform))
+    if (usage_flags & static_cast<u32>(EBufferUsage::Uniform))
     {
       result |= VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
     }
 
-    if (usage_flags & static_cast<uint32_t>(EBufferUsage::Storage))
+    if (usage_flags & static_cast<u32>(EBufferUsage::Storage))
     {
       result |= VK_BUFFER_USAGE_STORAGE_BUFFER_BIT;
     }
 
-    if (usage_flags & static_cast<uint32_t>(EBufferUsage::Transfer))
+    if (usage_flags & static_cast<u32>(EBufferUsage::Transfer))
     {
       result |= VK_BUFFER_USAGE_TRANSFER_SRC_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
     }
 
-    if (usage_flags & static_cast<uint32_t>(EBufferUsage::Indirect))
+    if (usage_flags & static_cast<u32>(EBufferUsage::Indirect))
     {
       result |= VK_BUFFER_USAGE_INDIRECT_BUFFER_BIT;
     }
@@ -485,10 +485,10 @@ namespace ghi
       vkCmdPipelineBarrier(cmdbuffer, srcStageMask, dstStageMask, 0, 0, nullptr, 0, nullptr, 1, &barrier);
     };
 
+    const auto dev = reinterpret_cast<VulkanDevice *>(device);
+
     if (count == 0)
       return {};
-
-    const auto dev = reinterpret_cast<VulkanDevice *>(device);
 
     VkDeviceSize totalSize = 0;
     Vec<VkDeviceSize> offsets(count);
@@ -496,16 +496,37 @@ namespace ghi
 
     for (u32 i = 0; i < count; i++)
     {
-      auto impl = (VulkanImage *) handles[i];
+      auto impl = reinterpret_cast<VulkanImage *>(handles[i]);
       if (!impl || !image_data[i])
         continue;
 
       offsets[i] = totalSize;
       VkDeviceSize currentTextureSize = 0;
 
-      // [IATODO]: Add compressed format support
-      currentTextureSize =
-          impl->get_extent().width * impl->get_extent().height * impl->get_extent().depth * 4 * impl->get_layer_count();
+      if (ghi::is_compressed_format(impl->get_format_enum()))
+      {
+        u32 mipW = impl->get_extent().width;
+        u32 mipH = impl->get_extent().height;
+        u32 blockSize = ghi::get_compressed_format_block_size(impl->get_format_enum());
+
+        for (u32 m = 0; m < impl->get_mip_level_count(); m++)
+        {
+          u32 blocksX = (mipW + 3) / 4;
+          u32 blocksY = (mipH + 3) / 4;
+          currentTextureSize += blocksX * blocksY * blockSize;
+
+          mipW = std::max(1u, mipW / 2);
+          mipH = std::max(1u, mipH / 2);
+        }
+        currentTextureSize *= impl->get_layer_count();
+
+        generate_mip_maps = false;
+      }
+      else
+      {
+        currentTextureSize = impl->get_extent().width * impl->get_extent().height * impl->get_extent().depth * ghi::get_format_byte_size(impl->get_format_enum()) *
+                             impl->get_layer_count();
+      }
 
       textureByteSizes[i] = currentTextureSize;
       totalSize += currentTextureSize;
@@ -541,11 +562,11 @@ namespace ghi
     AU_TRY_DISCARD(dev->execute_single_time_commands([&](VkCommandBuffer cmd) {
       for (u32 i = 0; i < count; i++)
       {
-        auto impl = (VulkanImage *) handles[i];
+        auto impl = reinterpret_cast<VulkanImage *>(handles[i]);
         if (!impl || !image_data[i])
           continue;
 
-        // [IATODO]: Add support for compressed data
+        if (ghi::is_compressed_format(impl->get_format_enum()))
         {
           VkImageSubresourceRange range = {};
           range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -554,9 +575,61 @@ namespace ghi
           range.baseArrayLayer = 0;
           range.layerCount = impl->get_layer_count();
 
-          insert_image_barrier(cmd, impl->get_handle(), 0, VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
-                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
-                               VK_PIPELINE_STAGE_TRANSFER_BIT, range);
+          insert_image_barrier(cmd, impl->get_handle(), 0, VK_ACCESS_TRANSFER_WRITE_BIT,
+                               VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                               VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, range);
+
+          std::vector<VkBufferImageCopy> regions;
+          u32 currentBufferOffset = 0;
+          u32 mipW = impl->get_extent().width;
+          u32 mipH = impl->get_extent().height;
+          u32 blockSize = ghi::get_compressed_format_block_size(impl->get_format_enum());
+
+          for (u32 layer = 0; layer < impl->get_layer_count(); layer++)
+          {
+            for (u32 m = 0; m < impl->get_mip_level_count(); m++)
+            {
+              VkBufferImageCopy region = {};
+              region.bufferOffset = offsets[i] + currentBufferOffset;
+              region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+              region.imageSubresource.mipLevel = m;
+              region.imageSubresource.baseArrayLayer = layer;
+              region.imageSubresource.layerCount = 1;
+              region.imageExtent = {mipW, mipH, 1};
+
+              regions.push_back(region);
+
+              u32 blocksX = (mipW + 3) / 4;
+              u32 blocksY = (mipH + 3) / 4;
+              u32 mipSize = blocksX * blocksY * blockSize;
+              currentBufferOffset += mipSize;
+
+              mipW = std::max(1u, mipW / 2);
+              mipH = std::max(1u, mipH / 2);
+            }
+            mipW = impl->get_extent().width;
+            mipH = impl->get_extent().height;
+          }
+
+          vkCmdCopyBufferToImage(cmd, stagingBuffer, impl->get_handle(), VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                 static_cast<u32>(regions.size()), regions.data());
+
+          insert_image_barrier(cmd, impl->get_handle(), VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_SHADER_READ_BIT,
+                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                               VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, range);
+        }
+        else
+        {
+          VkImageSubresourceRange range = {};
+          range.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+          range.baseMipLevel = 0;
+          range.levelCount = impl->get_mip_level_count();
+          range.baseArrayLayer = 0;
+          range.layerCount = impl->get_layer_count();
+
+          insert_image_barrier(cmd, impl->get_handle(), 0, VK_ACCESS_TRANSFER_WRITE_BIT,
+                               VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                               VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, range);
 
           VkBufferImageCopy region = {};
           region.bufferOffset = offsets[i];
@@ -577,7 +650,7 @@ namespace ghi
             int32_t mipWidth = impl->get_extent().width;
             int32_t mipHeight = impl->get_extent().height;
 
-            for (uint32_t j = 1; j < impl->get_mip_level_count(); j++)
+            for (u32 j = 1; j < impl->get_mip_level_count(); j++)
             {
               VkImageSubresourceRange mipSubRange = {};
               mipSubRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
@@ -586,9 +659,10 @@ namespace ghi
               mipSubRange.baseArrayLayer = 0;
               mipSubRange.layerCount = impl->get_layer_count();
 
-              insert_image_barrier(cmd, impl->get_handle(), VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT,
-                                   VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                   VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, mipSubRange);
+              insert_image_barrier(cmd, impl->get_handle(), VK_ACCESS_TRANSFER_WRITE_BIT,
+                                   VK_ACCESS_TRANSFER_READ_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+                                   VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                   VK_PIPELINE_STAGE_TRANSFER_BIT, mipSubRange);
 
               VkImageBlit blit = {};
               blit.srcOffsets[0] = {0, 0, 0};
@@ -608,9 +682,10 @@ namespace ghi
               vkCmdBlitImage(cmd, impl->get_handle(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, impl->get_handle(),
                              VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR);
 
-              insert_image_barrier(cmd, impl->get_handle(), VK_ACCESS_TRANSFER_READ_BIT, VK_ACCESS_SHADER_READ_BIT,
-                                   VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-                                   VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, mipSubRange);
+              insert_image_barrier(cmd, impl->get_handle(), VK_ACCESS_TRANSFER_READ_BIT,
+                                   VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                   VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT,
+                                   VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, mipSubRange);
 
               if (mipWidth > 1)
                 mipWidth /= 2;
@@ -636,8 +711,6 @@ namespace ghi
         }
       }
     }));
-
-    vkDeviceWaitIdle(dev->get_handle());
 
     vmaDestroyBuffer(dev->m_allocator, stagingBuffer, stagingAlloc);
 
@@ -969,23 +1042,22 @@ namespace ghi
       -> Result<void>
   {
     const auto dev = reinterpret_cast<VulkanDevice *>(device);
-    return dev->execute_single_time_commands([=](VkCommandBuffer cmd) {
-      commands_callback(reinterpret_cast<CommandBuffer>(cmd));
-    });
+    return dev->execute_single_time_commands(
+        [=](VkCommandBuffer cmd) { commands_callback(reinterpret_cast<CommandBuffer>(cmd)); });
   }
 } // namespace ghi
 
 namespace ghi
 {
   auto VulkanBackend::cmd_copy_buffer(CommandBuffer cmd, Buffer src, Buffer dst, u64 size, u64 src_offset,
-                                    u64 dst_offset) -> void
+                                      u64 dst_offset) -> void
   {
     const auto src_impl = reinterpret_cast<VulkanBuffer *>(src);
     const auto dst_impl = reinterpret_cast<VulkanBuffer *>(dst);
     const VkBufferCopy copyRegion{
-      .srcOffset = src_offset,
-      .dstOffset = dst_offset,
-      .size = size,
+        .srcOffset = src_offset,
+        .dstOffset = dst_offset,
+        .size = size,
     };
     vkCmdCopyBuffer(reinterpret_cast<VkCommandBuffer>(cmd), src_impl->handle, dst_impl->handle, 1, &copyRegion);
   }

@@ -40,13 +40,14 @@ namespace ghi
   {
     backend.end_frame(device);
   }
-  
+
   auto set_clear_color(f32 r, f32 g, f32 b, f32 a) -> void
   {
     backend.set_clear_color(r, g, b, a);
   }
 
-  auto execute_single_time_commands(Device device, const std::function<void(CommandBuffer)>& commands_callback) -> Result<void>
+  auto execute_single_time_commands(Device device, const std::function<void(CommandBuffer)> &commands_callback)
+      -> Result<void>
   {
     return backend.execute_single_time_commands(device, commands_callback);
   }
@@ -91,8 +92,8 @@ namespace ghi
     backend.destroy_images(device, count, handles);
   }
 
-  auto upload_image_data(Device device, u32 count, Image *handles, const u8 **image_data,
-                                 bool generate_mip_maps) -> Result<void>
+  auto upload_image_data(Device device, u32 count, Image *handles, const u8 **image_data, bool generate_mip_maps)
+      -> Result<void>
   {
     return backend.upload_image_data(device, count, handles, image_data, generate_mip_maps);
   }
@@ -117,7 +118,8 @@ namespace ghi
     backend.destroy_binding_layout(device, layout);
   }
 
-  auto create_descriptor_tables(Device device, BindingLayout layout, u32 count, DescriptorTable *out_tables) -> Result<void>
+  auto create_descriptor_tables(Device device, BindingLayout layout, u32 count, DescriptorTable *out_tables)
+      -> Result<void>
   {
     return backend.create_descriptor_tables(device, layout, count, out_tables);
   }
@@ -231,6 +233,55 @@ namespace ghi
   auto is_compressed_format(EFormat format) -> bool
   {
     return format >= EFormat::Bc1RgbUnormBlock;
+  }
+
+  auto get_format_byte_size(EFormat format) -> u32
+  {
+    switch (format)
+    {
+    case EFormat::R8G8B8A8Unorm:
+    case EFormat::R8G8B8A8Srgb:
+    case EFormat::B8G8R8A8Srgb:
+    case EFormat::B8G8R8A8Unorm:
+      return 4;
+
+    case EFormat::R32Uint:
+    case EFormat::R32Float:
+      return 4;
+    case EFormat::R32G32Float:
+      return 8;
+    case EFormat::R32G32B32Float:
+      return 12;
+    case EFormat::R32G32B32A32Float:
+      return 16;
+
+    case EFormat::D16Unorm:
+      return 2;
+    case EFormat::D16UnormS8Uint:
+      return 3;
+    case EFormat::D24UnormS8Uint:
+      return 4;
+    case EFormat::D32Sfloat:
+      return 4;
+    case EFormat::D32SfloatS8Uint:
+      return 5;
+
+    case EFormat::Bc1RgbUnormBlock:
+    case EFormat::Bc1RgbSrgbBlock:
+    case EFormat::Bc1RgbaUnormBlock:
+    case EFormat::Bc1RgbaSrgbBlock:
+    case EFormat::Bc2UnormBlock:
+    case EFormat::Bc2SrgbBlock:
+    case EFormat::Bc3UnormBlock:
+    case EFormat::Bc3SrgbBlock:
+    case EFormat::Bc5UnormBlock:
+    case EFormat::Bc5SnormBlock:
+      return 0;
+
+    case EFormat::Undefined:
+    default:
+      return 0;
+    }
   }
 
   auto get_compressed_format_block_size(EFormat format) -> u32

@@ -42,6 +42,11 @@ public:
       return m_format;
     }
 
+    [[nodiscard]] auto get_format_enum() const -> EFormat
+    {
+      return m_format_enum;
+    }
+
     [[nodiscard]] auto get_extent() const -> VkExtent3D
     {
       return m_extent;
@@ -66,5 +71,6 @@ private:
     u32 m_mip_level_count{};
     VmaAllocation m_allocation{};
     VmaAllocationInfo m_allocation_info{};
+    EFormat m_format_enum{};
   };
 } // namespace ghi
