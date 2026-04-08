@@ -178,7 +178,7 @@ namespace ghi
     VulkanGraphicsPipeline result{};
 
     Vec<const VulkanBindingLayout *> bindings_layouts;
-    for (u32 i = 0; i < desc.binding_layout_count; ++i)
+    for (u32 i = 0; i < desc.binding_layouts.size(); ++i)
     {
       bindings_layouts.push_back(reinterpret_cast<VulkanBindingLayout *>(desc.binding_layouts[i]));
     }
@@ -199,8 +199,8 @@ namespace ghi
     dynamic_state.dynamicStateCount = static_cast<u32>(dynamic_states.size());
     dynamic_state.pDynamicStates = dynamic_states.data();
 
-    auto vertex_bindings = map_vertex_bindings_vk(desc.vertex_bindings, desc.vertex_binding_count);
-    auto vertex_attributes = map_vertex_attributes_vk(desc.vertex_attributes, desc.vertex_attribute_count);
+    auto vertex_bindings = map_vertex_bindings_vk(desc.vertex_bindings.data(), desc.vertex_bindings.size());
+    auto vertex_attributes = map_vertex_attributes_vk(desc.vertex_attributes.data(), desc.vertex_attributes.size());
 
     VkPipelineVertexInputStateCreateInfo vertex_input_info{};
     vertex_input_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;

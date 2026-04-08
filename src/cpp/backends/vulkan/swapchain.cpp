@@ -118,6 +118,15 @@ namespace ghi
       }
     }
 
+    VkSurfaceCapabilitiesKHR surface_capabilities;
+    VK_CALL(
+        vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device.m_physical_device, device.m_surface, &surface_capabilities),
+        "Fetching surface capabilities");
+    m_buffer_count = std::max(NUM_FRAMES_BUFFERED, surface_capabilities.minImageCount);
+    if (surface_capabilities.maxImageCount > 0)
+      m_buffer_count = std::min(m_buffer_count, surface_capabilities.maxImageCount);
+    m_min_extent = surface_capabilities.minImageExtent;
+    m_max_extent = surface_capabilities.maxImageExtent;
     m_extent.width = std::min(std::max(m_extent.width, m_min_extent.width), m_max_extent.width);
     m_extent.height = std::min(std::max(m_extent.height, m_min_extent.height), m_max_extent.height);
 
@@ -167,7 +176,6 @@ namespace ghi
     semaphore_create_info.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO;
     for (i32 i = 0; i < m_buffer_count; i++)
     {
-      vkDestroySemaphore(device.m_handle, m_frames[i].image_available_semaphore, nullptr);
       VK_CALL(
           vkCreateSemaphore(device.m_handle, &semaphore_create_info, nullptr, &m_frames[i].image_available_semaphore),
           "Creating swapchain semaphore");
@@ -194,6 +202,13 @@ namespace ghi
     logger.info("recreated swapchain (%ux%ux%u)", m_extent.width, m_extent.height, create_info.minImageCount);
 
     return {};
+  }
+
+  auto VulkanSwapchain::recreate(VulkanDevice &device, u32 width, u32 height) -> Result<void>
+  {
+    m_extent.width = width;
+    m_extent.height = height;
+    return recreate(device);
   }
 
   auto VulkanSwapchain::advance_frame(VulkanDevice &device) -> bool

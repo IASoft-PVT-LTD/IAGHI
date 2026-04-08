@@ -154,9 +154,19 @@ namespace ghi
     backend.destroy_pipeline(device, pipeline);
   }
 
+  auto resize_swapchain(Device device, u32 width, u32 height) -> Result<void>
+  {
+    return backend.resize_swapchain(device, width, height);
+  }
+
   auto get_swapchain_format(Device device) -> EFormat
   {
     return backend.get_swapchain_format(device);
+  }
+
+  auto get_swapchain_extent(Device device, u32 &width, u32 &height) -> void
+  {
+    backend.get_swapchain_extent(device, width, height);
   }
 } // namespace ghi
 

@@ -43,6 +43,7 @@ public:
     auto destroy(VulkanDevice& device) -> void;
 
     auto recreate(VulkanDevice& device) -> Result<void>;
+    auto recreate(VulkanDevice& device, u32 width, u32 height) -> Result<void>;
 
     auto advance_frame(VulkanDevice& device) -> bool;
 

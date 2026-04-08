@@ -74,7 +74,9 @@ public:
     auto create_graphics_pipeline(Device device, const GraphicsPipelineDesc *desc) -> Result<Pipeline>;
     auto destroy_pipeline(Device device, Pipeline pipeline) -> void;
 
+    auto resize_swapchain(Device device, u32 width, u32 height) -> Result<void>;
     auto get_swapchain_format(Device device) -> EFormat;
+    auto get_swapchain_extent(Device device, u32& width, u32& height) -> void;
 
     auto begin_frame(Device device) -> CommandBuffer;
     auto end_frame(Device device) -> void;

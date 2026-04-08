@@ -901,10 +901,25 @@ namespace ghi
     delete pipeline_impl;
   }
 
+  auto VulkanBackend::resize_swapchain(Device device, u32 width, u32 height) -> Result<void>
+  {
+    const auto dev = reinterpret_cast<VulkanDevice *>(device);
+    AU_TRY_DISCARD(dev->m_swapchain.recreate(*dev, width, height));
+    return {};
+  }
+
   auto VulkanBackend::get_swapchain_format(Device device) -> EFormat
   {
     const auto dev = reinterpret_cast<VulkanDevice *>(device);
     return map_vk_to_format_enum(dev->m_swapchain.m_format);
+  }
+
+  auto VulkanBackend::get_swapchain_extent(Device device, u32 &width, u32 &height) -> void
+  {
+    const auto dev = reinterpret_cast<VulkanDevice *>(device);
+    const auto extent = dev->m_swapchain.get_extent();
+    width = extent.width;
+    height = extent.height;
   }
 
   auto VulkanBackend::begin_frame(Device device) -> CommandBuffer

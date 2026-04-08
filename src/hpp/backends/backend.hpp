@@ -78,6 +78,8 @@ namespace ghi
     } -> std::same_as<Result<Shader>>;
     { backend.destroy_shader(std::declval<Device>(), std::declval<Shader>()) } -> std::same_as<void>;
 
+    { backend.resize_swapchain(std::declval<Device>(), std::declval<u32>(), std::declval<u32>()) } -> std::same_as<Result<void>>;
+    { backend.get_swapchain_extent(std::declval<Device>(), std::declval<u32 &>(), std::declval<u32 &>()) } -> std::same_as<void>;
     { backend.get_swapchain_format(std::declval<Device>()) } -> std::same_as<EFormat>;
 
     // { [IATODO]
@@ -96,12 +98,13 @@ namespace ghi
     { backend.wait_idle(std::declval<Device>()) } -> std::same_as<void>;
 
     {
-      backend.execute_single_time_commands(std::declval<Device>(), std::declval<const std::function<void(CommandBuffer)>&>())
+      backend.execute_single_time_commands(std::declval<Device>(),
+                                           std::declval<const std::function<void(CommandBuffer)> &>())
     } -> std::same_as<Result<void>>;
 
     {
-      backend.cmd_copy_buffer(std::declval<CommandBuffer>(), std::declval<Buffer>(), std::declval<Buffer>(), std::declval<u64>(), std::declval<u64>(),
-                                       std::declval<u64>())
+      backend.cmd_copy_buffer(std::declval<CommandBuffer>(), std::declval<Buffer>(), std::declval<Buffer>(),
+                              std::declval<u64>(), std::declval<u64>(), std::declval<u64>())
     } -> std::same_as<void>;
 
     {

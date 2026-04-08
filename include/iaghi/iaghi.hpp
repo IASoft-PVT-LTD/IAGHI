@@ -243,8 +243,6 @@ namespace ghi
   {
     Shader vertex_shader;
     Shader fragment_shader;
-    const BindingLayout *binding_layouts;
-    u32 binding_layout_count;
 
     EFormat *color_formats;
     u32 color_attachment_count;
@@ -255,17 +253,16 @@ namespace ghi
     EPolygonMode polygon_mode{EPolygonMode::Fill};
     EPrimitiveType primitive_type{EPrimitiveType::TriangleList};
 
-    VertexInputBinding *vertex_bindings;
-    u32 vertex_binding_count;
-    VertexInputAttribute *vertex_attributes;
-    u32 vertex_attribute_count;
+    Span<const BindingLayout> binding_layouts;
+    Span<const VertexInputBinding> vertex_bindings;
+    Span<const VertexInputAttribute> vertex_attributes;
   } GraphicsPipelineDesc;
 
   typedef struct ComputePipelineDesc
   {
     Shader compute_shader;
-    BindingLayout *layouts;
-    u32 layout_count;
+
+    Span<const BindingLayout> binding_layouts;
   } ComputePipelineDesc;
 
   typedef struct ColorAttachment
@@ -338,7 +335,9 @@ namespace ghi
   auto create_graphics_pipeline(Device device, const GraphicsPipelineDesc *desc) -> Result<Pipeline>;
   auto destroy_pipeline(Device device, Pipeline pipeline) -> void;
 
+  auto resize_swapchain(Device device, u32 width, u32 height) -> Result<void>;
   auto get_swapchain_format(Device device) -> EFormat;
+  auto get_swapchain_extent(Device device, u32& width, u32& height) -> void;
 
   auto begin_frame(Device device) -> CommandBuffer;
   auto end_frame(Device device) -> void;

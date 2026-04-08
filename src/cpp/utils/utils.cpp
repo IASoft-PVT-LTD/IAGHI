@@ -133,7 +133,7 @@ namespace ghi::utils
     return image;
   }
 
-  auto compile_glsl(Device device, const char *glsl, EShaderStage stage, const char *entry_point) -> Result<Shader>
+  auto create_shader_from_glsl(Device device, const char *glsl, EShaderStage stage, const char *entry_point) -> Result<Shader>
   {
     const auto map_stage_to_glslang = [](EShaderStage stage) {
       switch (stage)

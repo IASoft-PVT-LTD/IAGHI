@@ -89,8 +89,8 @@ void main()
 
     ghi::set_clear_color(100.0f / 255.0f, 149.0f / 255.0f, 237.0f / 255.0f, 1.0f);
 
-    const auto vertex_shader = AU_TRY(utils::compile_glsl(device, VERTEX_SHADER_SRC, EShaderStage::Vertex));
-    const auto fragment_shader = AU_TRY(utils::compile_glsl(device, FRAGMENT_SHADER_SRC, EShaderStage::Fragment));
+    const auto vertex_shader = AU_TRY(utils::create_shader_from_glsl(device, VERTEX_SHADER_SRC, EShaderStage::Vertex));
+    const auto fragment_shader = AU_TRY(utils::create_shader_from_glsl(device, FRAGMENT_SHADER_SRC, EShaderStage::Fragment));
 
     VertexInputBinding vertex_input_binding{
         .binding = 0,
@@ -118,17 +118,14 @@ void main()
         .vertex_shader = vertex_shader,
         .fragment_shader = fragment_shader,
 
-        .binding_layouts = &binding_layout,
-        .binding_layout_count = 1,
-
         .color_formats = &color_format,
         .color_attachment_count = 1,
         .depth_format = EFormat::D32Sfloat,
         .cull_mode = ECullMode::None,
-        .vertex_bindings = &vertex_input_binding,
-        .vertex_binding_count = 1,
-        .vertex_attributes = vertex_input_attributes,
-        .vertex_attribute_count = 2,
+
+        .binding_layouts = {binding_layout},
+        .vertex_bindings = {vertex_input_binding},
+        .vertex_attributes = {vertex_input_attributes},
     };
     const auto pipeline = AU_TRY(ghi::create_graphics_pipeline(device, &pipeline_desc));
 
@@ -186,6 +183,10 @@ void main()
         if ((event.type == SDL_EVENT_QUIT) ||
             ((event.type == SDL_EVENT_KEY_DOWN) && (event.key.scancode == SDL_SCANCODE_ESCAPE)))
           running = false;
+        else if (event.type == SDL_EVENT_WINDOW_RESIZED)
+        {
+          AU_TRY_DISCARD(ghi::resize_swapchain(device, event.window.data1, event.window.data2));
+        }
       }
 
       const auto current_frame = static_cast<f32>(SDL_GetTicks()) / 1000.0f;
