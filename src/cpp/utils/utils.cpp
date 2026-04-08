@@ -66,7 +66,7 @@ namespace ghi::utils
   auto shutdown(Device device) -> void
   {
     ghi::destroy_buffers(device, 1, &g_staging_buffer);
-    g_staging_buffer = ;
+    g_staging_buffer = NULL;
     g_staging_buffer_size = 0;
 
     glslang::FinalizeProcess();
