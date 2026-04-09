@@ -27,5 +27,8 @@ namespace ghi::utils
   auto create_image_from_file(Device device, const char* filepath, EFormat format = EFormat::R8G8B8A8Srgb) -> Result<Image>;
   auto create_image_from_rgba(Device device, u32 width, u32 height, const u8* rgba_data, EFormat format = EFormat::R8G8B8A8Srgb) -> Result<Image>;
 
+  auto get_default_image() -> Image;
+  auto get_default_sampler() -> Sampler;
+
   auto create_shader_from_glsl(Device device, const char* glsl, EShaderStage stage, const char* entry_point = "main") -> Result<Shader>;
 }

@@ -129,15 +129,6 @@ void main()
     };
     const auto pipeline = AU_TRY(ghi::create_graphics_pipeline(device, &pipeline_desc));
 
-    Sampler sampler;
-    SamplerDesc sampler_desc{
-        .linear_filter = true,
-        .repeat_uv = false,
-    };
-    AU_TRY_DISCARD(ghi::create_samplers(device, 1, &sampler_desc, &sampler));
-
-    auto image = AU_TRY(ghi::utils::create_image_from_file(device, "sandbox/res/6_diffuseOriginal.png"));
-
     DescriptorTable descriptor_table;
     AU_TRY_DISCARD(ghi::create_descriptor_tables(device, binding_layout, 1, &descriptor_table));
 
@@ -146,8 +137,8 @@ void main()
         .binding = 0,
         .array_element = 0,
 
-        .image = image,
-        .sampler = sampler,
+        .image = ghi::utils::get_default_image(),
+        .sampler = ghi::utils::get_default_sampler(),
     };
     update_descriptor_tables(device, 1, &descriptor_update);
 
@@ -214,9 +205,6 @@ void main()
     ghi::wait_idle(device);
 
     ghi::utils::shutdown(device);
-
-    ghi::destroy_images(device, 1, &image);
-    ghi::destroy_samplers(device, 1, &sampler);
 
     ghi::destroy_binding_layout(device, binding_layout);
 

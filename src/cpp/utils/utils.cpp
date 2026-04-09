@@ -17,6 +17,8 @@
 
 #include <iaghi/utils.hpp>
 
+#include <auxid/containers/vec.hpp>
+
 #include <glslang/Public/ShaderLang.h>
 #include <glslang/Public/ResourceLimits.h>
 #include <SPIRV/GlslangToSpv.h>
@@ -27,6 +29,9 @@ namespace ghi::utils
 {
   usize g_staging_buffer_size{64 * 1024};
   Buffer g_staging_buffer{NULL};
+
+  Image g_default_image{NULL};
+  Sampler g_default_sampler{NULL};
 
   auto ensure_min_staging_buffer_size(Device device, usize size) -> Result<void>
   {
@@ -60,11 +65,50 @@ namespace ghi::utils
     };
     AU_TRY_DISCARD(ghi::create_buffers(device, 1, &buffer_desc, &g_staging_buffer));
 
+    ghi::SamplerDesc sampler_desc{
+        .linear_filter = false,
+        .repeat_uv = true,
+    };
+    AU_TRY_DISCARD(ghi::create_samplers(device, 1, &sampler_desc, &g_default_sampler));
+
+    { // Default Image
+      const u32 width = 32;
+      const u32 height = 32;
+      const u32 checker_size = 4;
+
+      Vec<u8> rgba_data(width * height * 4);
+
+      for (u32 y = 0; y < height; ++y) {
+        for (u32 x = 0; x < width; ++x) {
+          bool is_violet = ((x / checker_size) % 2) == ((y / checker_size) % 2);
+
+          u32 index = (y * width + x) * 4;
+
+          if (is_violet) {
+            rgba_data[index + 0] = 255;
+            rgba_data[index + 1] = 0;
+            rgba_data[index + 2] = 255;
+            rgba_data[index + 3] = 255;
+          } else {
+            rgba_data[index + 0] = 255;
+            rgba_data[index + 1] = 255;
+            rgba_data[index + 2] = 255;
+            rgba_data[index + 3] = 255;
+          }
+        }
+      }
+
+      g_default_image = AU_TRY(create_image_from_rgba(device, width, height, rgba_data.data(), EFormat::R8G8B8A8Unorm));
+    }
+
     return {};
   }
 
   auto shutdown(Device device) -> void
   {
+    ghi::destroy_images(device, 1, &g_default_image);
+    ghi::destroy_samplers(device, 1, &g_default_sampler);
+
     ghi::destroy_buffers(device, 1, &g_staging_buffer);
     g_staging_buffer = NULL;
     g_staging_buffer_size = 0;
@@ -101,6 +145,16 @@ namespace ghi::utils
     return buffer;
   }
 
+  auto get_default_image() -> Image
+  {
+    return g_default_image;
+  }
+
+  auto get_default_sampler() -> Sampler
+  {
+    return g_default_sampler;
+  }
+
   auto create_image_from_file(Device device, const char *filepath, EFormat format) -> Result<Image>
   {
     i32 w, h, nr;
@@ -131,7 +185,8 @@ namespace ghi::utils
     return image;
   }
 
-  auto create_shader_from_glsl(Device device, const char *glsl, EShaderStage stage, const char *entry_point) -> Result<Shader>
+  auto create_shader_from_glsl(Device device, const char *glsl, EShaderStage stage, const char *entry_point)
+      -> Result<Shader>
   {
     const auto map_stage_to_glslang = [](EShaderStage stage) {
       switch (stage)
