@@ -392,9 +392,9 @@ namespace ghi
     for (u32 i = 0; i < count; i++)
     {
       const auto &desc = descs[i];
-      const auto buffer = AU_TRY(VulkanBuffer::create(dev->m_allocator, desc.size_bytes,
-                                                      map_buffer_usage_enum_to_vk(static_cast<u32>(desc.usage)),
-                                                      desc.cpu_visible, desc.debug_name));
+      const auto buffer =
+          AU_TRY(VulkanBuffer::create(*dev, desc.size_bytes, map_buffer_usage_enum_to_vk(static_cast<u32>(desc.usage)),
+                                      desc.cpu_visible, desc.debug_name));
       out_handles[i] = reinterpret_cast<Buffer>(new VulkanBuffer(std::move(buffer)));
     }
 
@@ -404,10 +404,9 @@ namespace ghi
   auto VulkanBackend::destroy_buffers(Device device, u32 count, const Buffer *handles) -> void
   {
     AU_UNUSED(device);
-
     for (u32 i = 0; i < count; i++)
     {
-      auto buffer = reinterpret_cast<VulkanBuffer *>(handles[i]);
+      const auto buffer = reinterpret_cast<VulkanBuffer *>(handles[i]);
       buffer->destroy();
       delete buffer;
     }
@@ -415,23 +414,32 @@ namespace ghi
 
   auto VulkanBackend::map_buffer(Device device, Buffer buffer) -> void *
   {
+    const auto dev = reinterpret_cast<VulkanDevice *>(device);
+
+    void *data{};
+
     const auto buf = reinterpret_cast<VulkanBuffer *>(buffer);
 
-    if (buf->alloc_info.pMappedData)
-      return buf->alloc_info.pMappedData;
+    auto &buf_data = buf->get_data(buf->get_data_count() > 1 ? dev->get_swapchain().get_current_frame_index() : 0);
 
-    void *data;
-    vmaMapMemory(buf->allocator_ref, buf->allocation, &data);
+    if (buf_data.alloc_info.pMappedData)
+      return buf_data.alloc_info.pMappedData;
+
+    vmaMapMemory(dev->get_allocator(), buf_data.allocation, &data);
 
     return data;
   }
 
   auto VulkanBackend::unmap_buffer(Device device, Buffer buffer) -> void
   {
+    const auto dev = reinterpret_cast<VulkanDevice *>(device);
+
     const auto buf = reinterpret_cast<VulkanBuffer *>(buffer);
 
-    if (!buf->alloc_info.pMappedData)
-      vmaUnmapMemory(buf->allocator_ref, buf->allocation);
+    auto &buf_data = buf->get_data(buf->get_data_count() > 1 ? dev->get_swapchain().get_current_frame_index() : 0);
+
+    if (!buf_data.alloc_info.pMappedData)
+      vmaUnmapMemory(dev->get_allocator(), buf_data.allocation);
   }
 
   auto VulkanBackend::create_images(Device device, u32 count, const ImageDesc *descs, Image *out_handles)
@@ -826,16 +834,16 @@ namespace ghi
       write.descriptorCount = 1;
       write.descriptorType = *target_type;
 
-      VkDescriptorBufferInfo bufferInfo{};
-      VkDescriptorImageInfo imageInfo{};
+      VkDescriptorBufferInfo buffer_info{};
+      VkDescriptorImageInfo image_info{};
 
       if (update.buffer)
       {
         const auto buffer_impl = reinterpret_cast<VulkanBuffer *>(update.buffer);
-        bufferInfo.buffer = buffer_impl->handle;
-        bufferInfo.offset = update.buffer_offset;
-        bufferInfo.range = (update.buffer_range == 0) ? VK_WHOLE_SIZE : update.buffer_range;
-        write.pBufferInfo = &bufferInfo;
+        buffer_info.buffer = buffer_impl->get_data((buffer_impl->get_data_count()  > 1) ? dev->get_swapchain().get_current_frame_index() : 0).handle;
+        buffer_info.offset = update.buffer_offset;
+        buffer_info.range = (update.buffer_range == 0) ? VK_WHOLE_SIZE : update.buffer_range;
+        write.pBufferInfo = &buffer_info;
       }
       else if (update.image)
       {
@@ -845,20 +853,20 @@ namespace ghi
         if (update.sampler)
           sampler = reinterpret_cast<VkSampler>(update.sampler);
 
-        imageInfo.imageView = image_impl->get_view();
-        imageInfo.sampler = sampler;
+        image_info.imageView = image_impl->get_view();
+        image_info.sampler = sampler;
 
         if (*target_type == VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER ||
             *target_type == VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE)
         {
-          imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+          image_info.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
         }
         else if (*target_type == VK_DESCRIPTOR_TYPE_STORAGE_IMAGE)
         {
-          imageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+          image_info.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
         }
 
-        write.pImageInfo = &imageInfo;
+        write.pImageInfo = &image_info;
       }
 
       if (update.update_all_frames)
@@ -1076,39 +1084,48 @@ namespace ghi
   auto VulkanBackend::cmd_copy_buffer(CommandBuffer cmd, Buffer src, Buffer dst, u64 size, u64 src_offset,
                                       u64 dst_offset) -> void
   {
-    const auto src_impl = reinterpret_cast<VulkanBuffer *>(src);
-    const auto dst_impl = reinterpret_cast<VulkanBuffer *>(dst);
-    const VkBufferCopy copyRegion{
+    const auto src_buf = reinterpret_cast<VulkanBuffer *>(src);
+    const auto dst_buf = reinterpret_cast<VulkanBuffer *>(dst);
+
+    auto& dev = src_buf->get_device();
+
+    const auto& src_data = src_buf->get_data((src_buf->get_data_count() > 1) ? dev.get_swapchain().get_current_frame_index() : 0);
+    const auto& dst_data = dst_buf->get_data((dst_buf->get_data_count() > 1) ? dev.get_swapchain().get_current_frame_index() : 0);
+
+    const VkBufferCopy copy_region{
         .srcOffset = src_offset,
         .dstOffset = dst_offset,
         .size = size,
     };
-    vkCmdCopyBuffer(reinterpret_cast<VkCommandBuffer>(cmd), src_impl->handle, dst_impl->handle, 1, &copyRegion);
+
+    vkCmdCopyBuffer(reinterpret_cast<VkCommandBuffer>(cmd), src_data.handle, dst_data.handle, 1, &copy_region);
   }
 
   auto VulkanBackend::cmd_bind_vertex_buffers(CommandBuffer cmd, u32 first_binding, u32 count, const Buffer *buffers,
                                               const u64 *offsets) -> void
   {
-    Vec<VkBuffer> vkBuffers(count);
-    Vec<VkDeviceSize> vkOffsets(count);
+    Vec<VkBuffer> vk_buffers(count);
+    Vec<VkDeviceSize> vk_offsets(count);
 
     for (u32 i = 0; i < count; ++i)
     {
-      const auto *impl = reinterpret_cast<VulkanBuffer *>(buffers[i]);
-      vkBuffers[i] = impl->handle;
-      vkOffsets[i] = offsets ? offsets[i] : 0;
+      auto *impl = reinterpret_cast<VulkanBuffer *>(buffers[i]);
+      assert(impl->m_data_count == 1);
+      vk_buffers[i] = impl->get_data(0).handle;
+      vk_offsets[i] = offsets ? offsets[i] : 0;
     }
 
-    vkCmdBindVertexBuffers(reinterpret_cast<VkCommandBuffer>(cmd), first_binding, count, vkBuffers.data(),
-                           vkOffsets.data());
+    vkCmdBindVertexBuffers(reinterpret_cast<VkCommandBuffer>(cmd), first_binding, count, vk_buffers.data(),
+                           vk_offsets.data());
   }
 
   auto VulkanBackend::cmd_bind_index_buffer(CommandBuffer cmd, Buffer buffer, u64 offset, bool use_32_bit_indices)
       -> void
   {
-    const auto *impl = reinterpret_cast<VulkanBuffer *>(buffer);
+    auto *impl = reinterpret_cast<VulkanBuffer *>(buffer);
+    assert(impl->m_data_count == 1);
     const VkIndexType type = use_32_bit_indices ? VK_INDEX_TYPE_UINT32 : VK_INDEX_TYPE_UINT16;
-    vkCmdBindIndexBuffer(reinterpret_cast<VkCommandBuffer>(cmd), impl->handle, offset, type);
+    vkCmdBindIndexBuffer(reinterpret_cast<VkCommandBuffer>(cmd), impl->get_data(0).handle, offset, type);
   }
 
   auto VulkanBackend::cmd_bind_pipeline(CommandBuffer cmd, Pipeline pipeline) -> void
@@ -1168,8 +1185,9 @@ namespace ghi
     if (!indirect_buffer)
       return;
 
-    const auto *impl = reinterpret_cast<VulkanBuffer *>(indirect_buffer);
-    vkCmdDrawIndexedIndirect(reinterpret_cast<VkCommandBuffer>(cmd), impl->handle, offset, draw_count, stride);
+    auto *impl = reinterpret_cast<VulkanBuffer *>(indirect_buffer);
+    assert(impl->m_data_count == 1);
+    vkCmdDrawIndexedIndirect(reinterpret_cast<VkCommandBuffer>(cmd), impl->get_data(0).handle, offset, draw_count, stride);
   }
 
   auto VulkanBackend::cmd_pipeline_barrier(CommandBuffer cmd, u32 buffer_barrier_count,
@@ -1224,21 +1242,22 @@ namespace ghi
     {
       const auto &desc = buffer_barriers[i];
       auto *impl = reinterpret_cast<VulkanBuffer *>(desc.buffer);
+      auto& data = impl->get_data(impl->get_data_count() == 1 ? impl->get_device().get_swapchain().get_current_frame_index() : 0);
 
-      auto srcInfo = GetStateInfo(desc.old_state);
-      auto dstInfo = GetStateInfo(desc.new_state);
+      const auto src_info = GetStateInfo(desc.old_state);
+      const auto dst_info = GetStateInfo(desc.new_state);
 
       VkBufferMemoryBarrier2 barrier = {
           .sType = VK_STRUCTURE_TYPE_BUFFER_MEMORY_BARRIER_2,
-          .srcStageMask = srcInfo.stage,
-          .srcAccessMask = srcInfo.access,
-          .dstStageMask = dstInfo.stage,
-          .dstAccessMask = dstInfo.access,
+          .srcStageMask = src_info.stage,
+          .srcAccessMask = src_info.access,
+          .dstStageMask = dst_info.stage,
+          .dstAccessMask = dst_info.access,
           .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
           .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-          .buffer = impl->handle,
+          .buffer = data.handle,
           .offset = 0,
-          .size = impl->size,
+          .size = impl->m_size,
       };
 
       buffers.push_back(barrier);
@@ -1247,29 +1266,29 @@ namespace ghi
     for (u32 i = 0; i < texture_barrier_count; i++)
     {
       const auto &desc = texture_barriers[i];
-      auto *impl = reinterpret_cast<VulkanImage *>(desc.image);
+      const auto *impl = reinterpret_cast<VulkanImage *>(desc.image);
 
-      auto srcInfo = GetStateInfo(desc.old_state);
-      auto dstInfo = GetStateInfo(desc.new_state);
+      const auto src_info = GetStateInfo(desc.old_state);
+      const auto dst_info = GetStateInfo(desc.new_state);
 
-      VkImageAspectFlags aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+      VkImageAspectFlags aspect_mask = VK_IMAGE_ASPECT_COLOR_BIT;
       if (is_vk_depth_format(impl->get_format()))
-        aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+        aspect_mask = VK_IMAGE_ASPECT_DEPTH_BIT;
 
       VkImageMemoryBarrier2 barrier = {
           .sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
-          .srcStageMask = srcInfo.stage,
-          .srcAccessMask = srcInfo.access,
-          .dstStageMask = dstInfo.stage,
-          .dstAccessMask = dstInfo.access,
-          .oldLayout = srcInfo.layout,
-          .newLayout = dstInfo.layout,
+          .srcStageMask = src_info.stage,
+          .srcAccessMask = src_info.access,
+          .dstStageMask = dst_info.stage,
+          .dstAccessMask = dst_info.access,
+          .oldLayout = src_info.layout,
+          .newLayout = dst_info.layout,
           .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
           .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
           .image = impl->get_handle(),
           .subresourceRange =
               {
-                  .aspectMask = aspectMask,
+                  .aspectMask = aspect_mask,
                   .baseMipLevel = 0,
                   .levelCount = VK_REMAINING_MIP_LEVELS,
                   .baseArrayLayer = 0,

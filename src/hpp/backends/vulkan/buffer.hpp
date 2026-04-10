@@ -19,144 +19,51 @@
 
 namespace ghi
 {
-  struct VulkanBuffer
-  {
-    u64 size{};
-    VkBuffer handle{};
-    VmaAllocation allocation{};
-    VmaAllocationInfo alloc_info{};
-    const VmaAllocator allocator_ref;
+  class VulkanDevice;
 
-    explicit VulkanBuffer(VmaAllocator allocator) : allocator_ref(allocator)
+  class VulkanBuffer
+  {
+public:
+    struct Data
+    {
+      VkBuffer handle{};
+      VmaAllocation allocation{};
+      VmaAllocationInfo alloc_info{};
+    };
+
+    explicit VulkanBuffer(VulkanDevice& device_ref) : m_device_ref(device_ref)
     {
     }
 
-    static auto create(VmaAllocator allocator, u64 size, VkBufferUsageFlags usage, bool host_visible,
+    static auto create(VulkanDevice& device, u64 size, VkBufferUsageFlags usage, bool host_visible,
                        const char *debug_name = "<not_set>") -> Result<VulkanBuffer>;
 
     auto destroy() -> void;
 
-    auto cmd_copy_to_buffer(VkCommandBuffer cmd, VkBuffer buffer, u64 size, u64 src_offset = 0,
-                            u64 dst_offset = 0) const -> void;
-    auto cmd_copy_from_buffer(VkCommandBuffer cmd, VkBuffer buffer, u64 size, u64 src_offset = 0, u64 dst_offset = 0)
-        -> void;
+    auto get_data(u32 index) -> Data&
+    {
+      return m_data[index];
+    }
+
+    [[nodiscard]] auto get_data_count() const -> u64
+    {
+      return m_data_count;
+    }
+
+    auto get_device() -> VulkanDevice&
+    {
+      return m_device_ref;
+    }
+
+private:
+    Data m_data[NUM_FRAMES_BUFFERED]; // [IATODO]: Memory inefficient yeah but for now this'll do
+
+    u64 m_size{};
+    u32 m_data_count{};
+    VulkanDevice& m_device_ref;
 
     friend class VulkanBackend;
     friend class VulkanDeviceLocalBuffer;
     friend class VulkanHostVisibleBuffer;
   };
-
-  class VulkanDeviceLocalBuffer
-  {
-public:
-    VulkanDeviceLocalBuffer(): m_buffer(VK_NULL_HANDLE) {}
-
-    explicit VulkanDeviceLocalBuffer(VulkanBuffer &&data) : m_buffer(std::move(data))
-    {
-    }
-
-    ~VulkanDeviceLocalBuffer() = default;
-
-    static auto create(VmaAllocator allocator, u64 size, VkBufferUsageFlags usage, const char *debug_name = "<not_set>")
-        -> Result<VulkanDeviceLocalBuffer>
-    {
-      auto buffer = AU_TRY(VulkanBuffer::create(allocator, size, usage, false, debug_name));
-      return VulkanDeviceLocalBuffer(std::move(buffer));
-    }
-
-    auto destroy() -> void
-    {
-      m_buffer.destroy();
-    }
-
-    auto cmd_copy_to_buffer(VkCommandBuffer cmd, VkBuffer buffer, u64 size, u64 src_offset = 0,
-                            u64 dst_offset = 0) const -> void
-    {
-      m_buffer.cmd_copy_to_buffer(cmd, buffer, size, src_offset, dst_offset);
-    }
-
-    auto cmd_copy_from_buffer(VkCommandBuffer cmd, VkBuffer buffer, u64 size, u64 src_offset = 0, u64 dst_offset = 0)
-        -> void
-    {
-      m_buffer.cmd_copy_from_buffer(cmd, buffer, size, src_offset, dst_offset);
-    }
-
-    [[nodiscard]] auto get_size() const -> u64
-    {
-      return m_buffer.size;
-    }
-
-    [[nodiscard]] auto get_handle() const -> VkBuffer
-    {
-      return m_buffer.handle;
-    }
-
-private:
-    VulkanBuffer m_buffer;
-  };
-
-  class VulkanHostVisibleBuffer
-  {
-public:
-    VulkanHostVisibleBuffer(): m_buffer(VK_NULL_HANDLE) {}
-
-    explicit VulkanHostVisibleBuffer(VulkanBuffer &&data) : m_buffer(std::move(data))
-    {
-    }
-
-    ~VulkanHostVisibleBuffer() = default;
-
-    static auto create(VmaAllocator allocator, u64 size, VkBufferUsageFlags usage, const char *debug_name = "<not_set>")
-        -> Result<VulkanHostVisibleBuffer>
-    {
-      auto buffer = AU_TRY(VulkanBuffer::create(allocator, size, usage, true, debug_name));
-      return VulkanHostVisibleBuffer(std::move(buffer));
-    }
-
-    auto destroy() -> void
-    {
-      m_buffer.destroy();
-    }
-
-    auto map(u64 size, u64 offset = 0) -> void *
-    {
-      if (m_buffer.alloc_info.pMappedData)
-        return m_buffer.alloc_info.pMappedData;
-
-      void* data;
-      vmaMapMemory(m_buffer.allocator_ref, m_buffer.allocation, &data);
-      return data;
-    }
-
-    auto unmap() const -> void
-    {
-      if (!m_buffer.alloc_info.pMappedData)
-        vmaUnmapMemory(m_buffer.allocator_ref, m_buffer.allocation);
-    }
-
-    auto cmd_copy_to_buffer(VkCommandBuffer cmd, VkBuffer buffer, u64 size, u64 src_offset = 0,
-                            u64 dst_offset = 0) const -> void
-    {
-      m_buffer.cmd_copy_to_buffer(cmd, buffer, size, src_offset, dst_offset);
-    }
-
-    auto cmd_copy_from_buffer(VkCommandBuffer cmd, VkBuffer buffer, u64 size, u64 src_offset = 0, u64 dst_offset = 0)
-        -> void
-    {
-      m_buffer.cmd_copy_from_buffer(cmd, buffer, size, src_offset, dst_offset);
-    }
-
-    [[nodiscard]] auto get_size() const -> u64
-    {
-      return m_buffer.size;
-    }
-
-    [[nodiscard]] auto get_handle() const -> VkBuffer
-    {
-      return m_buffer.handle;
-    }
-
-private:
-    VulkanBuffer m_buffer;
-  };
-}
+} // namespace ghi

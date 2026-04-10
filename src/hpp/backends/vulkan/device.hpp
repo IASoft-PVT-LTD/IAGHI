@@ -47,6 +47,11 @@ public:
       return m_descriptor_pool;
     }
 
+    auto get_allocator() -> VmaAllocator &
+    {
+      return m_allocator;
+    }
+
 private:
     VkDevice m_handle{};
     VkInstance m_instance{};

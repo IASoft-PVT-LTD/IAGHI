@@ -14,13 +14,22 @@
 // limitations under the License.
 
 #include <backends/vulkan/buffer.hpp>
+#include <backends/vulkan/device.hpp>
 
 namespace ghi
 {
-auto VulkanBuffer::create(VmaAllocator allocator, u64 size, VkBufferUsageFlags usage, bool host_visible,
-                                   const char *debug_name) -> Result<VulkanBuffer>
+  auto VulkanBuffer::create(VulkanDevice &device, u64 size, VkBufferUsageFlags usage, bool host_visible,
+                            const char *debug_name) -> Result<VulkanBuffer>
   {
-    VulkanBuffer result{allocator};
+    VulkanBuffer result{device};
+
+    const auto allocator = device.get_allocator();
+
+    result.m_size = size;
+
+    result.m_data_count = ((usage & VK_BUFFER_USAGE_STORAGE_BUFFER_BIT) || (usage & VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT))
+                              ? device.get_swapchain().get_backbuffer_image_count()
+                              : 1;
 
     VkBufferCreateInfo buffer_info{
         .sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
@@ -36,40 +45,23 @@ auto VulkanBuffer::create(VmaAllocator allocator, u64 size, VkBufferUsageFlags u
         .usage = host_visible ? VMA_MEMORY_USAGE_AUTO : VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
     };
 
-    VK_CALL(vmaCreateBuffer(allocator, &buffer_info, &alloc_create_info, &result.handle, &result.allocation,
-                            &result.alloc_info),
-            "Creating buffer");
-
-    vmaSetAllocationName(result.allocator_ref, result.allocation, debug_name);
+    for (u32 i = 0; i < result.m_data_count; i++)
+    {
+      VK_CALL(vmaCreateBuffer(allocator, &buffer_info, &alloc_create_info, &result.m_data[i].handle,
+                              &result.m_data[i].allocation, &result.m_data[i].alloc_info),
+              "Creating buffer");
+      vmaSetAllocationName(allocator, result.m_data[i].allocation, debug_name);
+    }
 
     return result;
   }
 
   auto VulkanBuffer::destroy() -> void
   {
-    vmaDestroyBuffer(allocator_ref, handle, allocation);
-    handle = VK_NULL_HANDLE;
+    for (u32 i = 0; i < m_data_count; i++)
+    {
+      vmaDestroyBuffer(m_device_ref.get_allocator(), m_data[i].handle, m_data[i].allocation);
+      m_data[i].handle = VK_NULL_HANDLE;
+    }
   }
-
-  auto VulkanBuffer::cmd_copy_to_buffer(VkCommandBuffer cmd, VkBuffer buffer, u64 size, u64 src_offset,
-                                               u64 dst_offset) const -> void
-  {
-    VkBufferCopy copy_region{
-        .srcOffset = src_offset,
-        .dstOffset = dst_offset,
-        .size = size,
-    };
-    vkCmdCopyBuffer(cmd, handle, buffer, 1, &copy_region);
-  }
-
-  auto VulkanBuffer::cmd_copy_from_buffer(VkCommandBuffer cmd, VkBuffer buffer, u64 size, u64 src_offset,
-                                                 u64 dst_offset) -> void
-  {
-    VkBufferCopy copy_region{
-        .srcOffset = src_offset,
-        .dstOffset = dst_offset,
-        .size = size,
-    };
-    vkCmdCopyBuffer(cmd, buffer, handle, 1, &copy_region);
-  }
-}
+} // namespace ghi
