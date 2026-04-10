@@ -37,6 +37,11 @@ public:
       return m_handle;
     }
 
+    auto get_swapchain() -> VulkanSwapchain &
+    {
+      return m_swapchain;
+    }
+
     auto get_descriptor_pool() -> VkDescriptorPool &
     {
       return m_descriptor_pool;

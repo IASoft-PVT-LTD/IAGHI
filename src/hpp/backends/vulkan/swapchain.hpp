@@ -72,6 +72,16 @@ public:
       depth = m_frames[m_current_frame_index].depth_image.get_view();
     }
 
+    [[nodiscard]] auto get_backbuffer_image_count() const -> u32
+    {
+      return m_buffer_count;
+    }
+
+    [[nodiscard]] auto get_current_frame_index() const -> u32
+    {
+      return m_current_sync_frame_index;
+    }
+
 private:
     VkSwapchainKHR m_handle{};
     VkExtent2D m_extent{};

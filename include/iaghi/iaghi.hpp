@@ -212,6 +212,8 @@ namespace ghi
 
   typedef struct DescriptorUpdate
   {
+    bool update_all_frames{false};
+
     DescriptorTable table;
     u32 binding;
     u32 array_element;

@@ -52,7 +52,7 @@ namespace ghi
 
   struct VulkanDescriptorTable
   {
-    VkDescriptorSet handle{VK_NULL_HANDLE};
+    VkDescriptorSet handles[NUM_FRAMES_BUFFERED]{};
     VulkanBindingLayout *layout{nullptr};
 
     static auto create(VulkanDevice& device, VulkanBindingLayout* layout) -> Result<VulkanDescriptorTable>;
@@ -75,7 +75,13 @@ namespace ghi
       return m_layout.handle;
     }
 
+    auto get_device() const -> VulkanDevice*
+    {
+      return m_device;
+    }
+
   private:
+    VulkanDevice* m_device{};
     VkPipeline m_handle{};
     VulkanPipelineLayout m_layout{};
   };

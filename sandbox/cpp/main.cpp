@@ -133,6 +133,8 @@ void main()
     AU_TRY_DISCARD(ghi::create_descriptor_tables(device, binding_layout, 1, &descriptor_table));
 
     DescriptorUpdate descriptor_update{
+        .update_all_frames = true,
+
         .table = descriptor_table,
         .binding = 0,
         .array_element = 0,

@@ -154,13 +154,17 @@ namespace ghi
   {
     VulkanDescriptorTable result;
 
+    VkDescriptorSetLayout layouts[NUM_FRAMES_BUFFERED] = {};
+    for (u32 i = 0; i < NUM_FRAMES_BUFFERED; ++i)
+      layouts[i] = layout->handle;
+
     VkDescriptorSetAllocateInfo alloc_info{};
     alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     alloc_info.descriptorPool = device.get_descriptor_pool();
-    alloc_info.descriptorSetCount = 1;
-    alloc_info.pSetLayouts = &layout->handle;
+    alloc_info.descriptorSetCount = device.get_swapchain().get_backbuffer_image_count();
+    alloc_info.pSetLayouts = layouts;
 
-    VK_CALL(vkAllocateDescriptorSets(device.get_handle(), &alloc_info, &result.handle), "allocating descriptor set");
+    VK_CALL(vkAllocateDescriptorSets(device.get_handle(), &alloc_info, result.handles), "allocating descriptor set");
 
     result.layout = layout;
 
@@ -169,13 +173,15 @@ namespace ghi
 
   auto VulkanDescriptorTable::destroy(VulkanDevice &device) -> void
   {
-    vkFreeDescriptorSets(device.get_handle(), device.get_descriptor_pool(), 1, &handle);
+    vkFreeDescriptorSets(device.get_handle(), device.get_descriptor_pool(), device.get_swapchain().get_backbuffer_image_count(), handles);
   }
 
   auto VulkanGraphicsPipeline::create(VulkanDevice &device, const GraphicsPipelineDesc &desc)
       -> Result<VulkanGraphicsPipeline>
   {
     VulkanGraphicsPipeline result{};
+
+    result.m_device = &device;
 
     Vec<const VulkanBindingLayout *> bindings_layouts;
     for (u32 i = 0; i < desc.binding_layouts.size(); ++i)

@@ -524,8 +524,8 @@ namespace ghi
       }
       else
       {
-        currentTextureSize = impl->get_extent().width * impl->get_extent().height * impl->get_extent().depth * ghi::get_format_byte_size(impl->get_format_enum()) *
-                             impl->get_layer_count();
+        currentTextureSize = impl->get_extent().width * impl->get_extent().height * impl->get_extent().depth *
+                             ghi::get_format_byte_size(impl->get_format_enum()) * impl->get_layer_count();
       }
 
       textureByteSizes[i] = currentTextureSize;
@@ -575,9 +575,9 @@ namespace ghi
           range.baseArrayLayer = 0;
           range.layerCount = impl->get_layer_count();
 
-          insert_image_barrier(cmd, impl->get_handle(), 0, VK_ACCESS_TRANSFER_WRITE_BIT,
-                               VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                               VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, range);
+          insert_image_barrier(cmd, impl->get_handle(), 0, VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
+                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                               VK_PIPELINE_STAGE_TRANSFER_BIT, range);
 
           std::vector<VkBufferImageCopy> regions;
           u32 currentBufferOffset = 0;
@@ -627,9 +627,9 @@ namespace ghi
           range.baseArrayLayer = 0;
           range.layerCount = impl->get_layer_count();
 
-          insert_image_barrier(cmd, impl->get_handle(), 0, VK_ACCESS_TRANSFER_WRITE_BIT,
-                               VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                               VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, range);
+          insert_image_barrier(cmd, impl->get_handle(), 0, VK_ACCESS_TRANSFER_WRITE_BIT, VK_IMAGE_LAYOUT_UNDEFINED,
+                               VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+                               VK_PIPELINE_STAGE_TRANSFER_BIT, range);
 
           VkBufferImageCopy region = {};
           region.bufferOffset = offsets[i];
@@ -659,10 +659,9 @@ namespace ghi
               mipSubRange.baseArrayLayer = 0;
               mipSubRange.layerCount = impl->get_layer_count();
 
-              insert_image_barrier(cmd, impl->get_handle(), VK_ACCESS_TRANSFER_WRITE_BIT,
-                                   VK_ACCESS_TRANSFER_READ_BIT, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-                                   VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                   VK_PIPELINE_STAGE_TRANSFER_BIT, mipSubRange);
+              insert_image_barrier(cmd, impl->get_handle(), VK_ACCESS_TRANSFER_WRITE_BIT, VK_ACCESS_TRANSFER_READ_BIT,
+                                   VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+                                   VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_TRANSFER_BIT, mipSubRange);
 
               VkImageBlit blit = {};
               blit.srcOffsets[0] = {0, 0, 0};
@@ -682,10 +681,9 @@ namespace ghi
               vkCmdBlitImage(cmd, impl->get_handle(), VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, impl->get_handle(),
                              VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &blit, VK_FILTER_LINEAR);
 
-              insert_image_barrier(cmd, impl->get_handle(), VK_ACCESS_TRANSFER_READ_BIT,
-                                   VK_ACCESS_SHADER_READ_BIT, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-                                   VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL, VK_PIPELINE_STAGE_TRANSFER_BIT,
-                                   VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, mipSubRange);
+              insert_image_barrier(cmd, impl->get_handle(), VK_ACCESS_TRANSFER_READ_BIT, VK_ACCESS_SHADER_READ_BIT,
+                                   VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+                                   VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, mipSubRange);
 
               if (mipWidth > 1)
                 mipWidth /= 2;
@@ -823,7 +821,6 @@ namespace ghi
 
       VkWriteDescriptorSet write{};
       write.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-      write.dstSet = table_impl->handle;
       write.dstBinding = update.binding;
       write.dstArrayElement = update.array_element;
       write.descriptorCount = 1;
@@ -864,7 +861,19 @@ namespace ghi
         write.pImageInfo = &imageInfo;
       }
 
-      vkUpdateDescriptorSets(dev->get_handle(), 1, &write, 0, nullptr);
+      if (update.update_all_frames)
+      {
+        for (u32 f = 0; f < dev->get_swapchain().get_backbuffer_image_count(); f++)
+        {
+          write.dstSet = table_impl->handles[f];
+          vkUpdateDescriptorSets(dev->get_handle(), 1, &write, 0, nullptr);
+        }
+      }
+      else
+      {
+        write.dstSet = table_impl->handles[dev->get_swapchain().get_current_frame_index()];
+        vkUpdateDescriptorSets(dev->get_handle(), 1, &write, 0, nullptr);
+      }
     }
   }
 
@@ -1114,7 +1123,8 @@ namespace ghi
     const auto p = reinterpret_cast<VulkanGraphicsPipeline *>(pipeline);
     const auto *impl = reinterpret_cast<VulkanDescriptorTable *>(table);
     vkCmdBindDescriptorSets(reinterpret_cast<VkCommandBuffer>(cmd), VK_PIPELINE_BIND_POINT_GRAPHICS, p->get_layout(),
-                            set_index, 1, &impl->handle, 0, nullptr);
+                            set_index, 1, &impl->handles[p->get_device()->get_swapchain().get_current_frame_index()], 0,
+                            nullptr);
   }
 
   auto VulkanBackend::cmd_set_viewport(CommandBuffer cmd, f32 x, f32 y, f32 w, f32 h) -> void
