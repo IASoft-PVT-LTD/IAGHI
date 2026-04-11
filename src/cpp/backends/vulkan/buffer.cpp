@@ -27,7 +27,7 @@ namespace ghi
 
     result.m_size = size;
 
-    result.m_data_count = ((usage & VK_BUFFER_USAGE_STORAGE_BUFFER_BIT) || (usage & VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT))
+    result.m_data_count = (usage & VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT)
                               ? device.get_swapchain().get_backbuffer_image_count()
                               : 1;
 
