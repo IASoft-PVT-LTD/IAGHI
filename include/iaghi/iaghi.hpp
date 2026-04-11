@@ -362,6 +362,7 @@ namespace ghi
 
   auto cmd_bind_pipeline(CommandBuffer cmd, Pipeline pipeline) -> void;
 
+  auto cmd_push_constants(CommandBuffer cmd, Pipeline pipeline, u32 offset, u32 size, const void *data) -> void;
   auto cmd_bind_descriptor_table(CommandBuffer cmd, u32 set_index, Pipeline pipeline, DescriptorTable table) -> void;
 
   auto cmd_set_viewport(CommandBuffer cmd, f32 x, f32 y, f32 w, f32 h) -> void;

@@ -183,6 +183,11 @@ namespace ghi
     backend.cmd_bind_pipeline(cmd, pipeline);
   }
 
+  auto cmd_push_constants(CommandBuffer cmd, Pipeline pipeline, u32 offset, u32 size, const void *data) -> void
+  {
+    backend.cmd_push_constants(cmd, pipeline, offset, size, data);
+  }
+
   auto cmd_bind_descriptor_table(CommandBuffer cmd, u32 set_index, Pipeline pipeline, DescriptorTable table) -> void
   {
     backend.cmd_bind_descriptor_table(cmd, set_index, pipeline, table);

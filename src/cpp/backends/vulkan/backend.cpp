@@ -1151,6 +1151,24 @@ namespace ghi
     vkCmdBindPipeline(reinterpret_cast<VkCommandBuffer>(cmd), VK_PIPELINE_BIND_POINT_GRAPHICS, p->get_handle());
   }
 
+  auto VulkanBackend::cmd_push_constants(CommandBuffer cmd, Pipeline pipeline, u32 offset, u32 size, const void *data)
+      -> void
+  {
+    const auto p = reinterpret_cast<VulkanGraphicsPipeline *>(pipeline);
+
+    const VkPushConstantsInfo push_constants_info{
+      .sType = VK_STRUCTURE_TYPE_PUSH_CONSTANTS_INFO,
+      .pNext = nullptr,
+      .layout = p->get_layout(),
+      .stageFlags = VK_SHADER_STAGE_ALL,
+      .offset = offset,
+      .size = size,
+      .pValues = data,
+    };
+
+    vkCmdPushConstants2(reinterpret_cast<VkCommandBuffer>(cmd), &push_constants_info);
+  }
+
   auto VulkanBackend::cmd_bind_descriptor_table(CommandBuffer cmd, u32 set_index, Pipeline pipeline,
                                                 DescriptorTable table) -> void
   {

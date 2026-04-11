@@ -125,6 +125,11 @@ namespace ghi
     { backend.cmd_bind_pipeline(std::declval<CommandBuffer>(), std::declval<Pipeline>()) } -> std::same_as<void>;
 
     {
+      backend.cmd_push_constants(std::declval<CommandBuffer>(), std::declval<Pipeline>(),
+                                        std::declval<u32>(), std::declval<u32>(), std::declval<const void *>())
+    } -> std::same_as<void>;
+
+    {
       backend.cmd_bind_descriptor_table(std::declval<CommandBuffer>(), std::declval<u32>(), std::declval<Pipeline>(),
                                         std::declval<DescriptorTable>())
     } -> std::same_as<void>;
