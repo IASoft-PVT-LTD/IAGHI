@@ -34,6 +34,7 @@ namespace ghi
   struct VulkanBindingLayout
   {
     VkDescriptorSetLayout handle{};
+    Vec<VkPushConstantRange> push_constants;
     HashMap<u32, VkDescriptorType> binding_types;
 
     static auto create(VulkanDevice& device, Span<const BindingLayoutEntry> entries)

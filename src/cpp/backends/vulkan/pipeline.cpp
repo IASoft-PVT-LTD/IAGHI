@@ -90,15 +90,26 @@ namespace ghi
 
     for (const auto &entry : entries)
     {
-      VkDescriptorSetLayoutBinding b{};
-      b.binding = entry.binding;
-      b.descriptorType = VulkanBackend::map_descriptor_type_enum_to_vk(entry.type);
-      b.descriptorCount = entry.count;
-      b.stageFlags = VulkanBackend::map_shader_stage_enum_to_vk(entry.visibility);
-      b.pImmutableSamplers = nullptr; // [IATODO] Support immutable samplers
-      bindings.push_back(b);
+      if (entry.is_push_constant)
+      {
+        result.push_constants.push_back(VkPushConstantRange{
+            .stageFlags = VulkanBackend::map_shader_stage_enum_to_vk(entry.visibility),
+            .offset = entry.pc_offset,
+            .size = entry.pc_size,
+        });
+      }
+      else
+      {
+        VkDescriptorSetLayoutBinding b{};
+        b.binding = entry.binding;
+        b.descriptorType = VulkanBackend::map_descriptor_type_enum_to_vk(entry.type);
+        b.descriptorCount = entry.count;
+        b.stageFlags = VulkanBackend::map_shader_stage_enum_to_vk(entry.visibility);
+        b.pImmutableSamplers = nullptr; // [IATODO] Support immutable samplers
+        bindings.push_back(b);
 
-      result.binding_types[entry.binding] = b.descriptorType;
+        result.binding_types[entry.binding] = b.descriptorType;
+      }
     }
 
     VkDescriptorSetLayoutCreateInfo layout_info{};
@@ -125,18 +136,21 @@ namespace ghi
   {
     VulkanPipelineLayout result{};
 
+    Vec<VkPushConstantRange> push_constants;
     Vec<VkDescriptorSetLayout> descriptor_set_layouts;
     for (const auto &binding : bindings)
     {
       descriptor_set_layouts.push_back(binding->handle);
+      for (const auto &pc : binding->push_constants)
+        push_constants.push_back(pc);
     }
 
-    VkPipelineLayoutCreateInfo layout_create_info{
+    const VkPipelineLayoutCreateInfo layout_create_info{
         .sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
         .setLayoutCount = static_cast<u32>(descriptor_set_layouts.size()),
         .pSetLayouts = descriptor_set_layouts.data(),
-        .pushConstantRangeCount = 0,
-        .pPushConstantRanges = nullptr,
+        .pushConstantRangeCount = static_cast<u32>(push_constants.size()),
+        .pPushConstantRanges = push_constants.data(),
     };
 
     VK_CALL(vkCreatePipelineLayout(device.get_handle(), &layout_create_info, nullptr, &result.handle),
@@ -173,7 +187,8 @@ namespace ghi
 
   auto VulkanDescriptorTable::destroy(VulkanDevice &device) -> void
   {
-    vkFreeDescriptorSets(device.get_handle(), device.get_descriptor_pool(), device.get_swapchain().get_backbuffer_image_count(), handles);
+    vkFreeDescriptorSets(device.get_handle(), device.get_descriptor_pool(),
+                         device.get_swapchain().get_backbuffer_image_count(), handles);
   }
 
   auto VulkanGraphicsPipeline::create(VulkanDevice &device, const GraphicsPipelineDesc &desc)

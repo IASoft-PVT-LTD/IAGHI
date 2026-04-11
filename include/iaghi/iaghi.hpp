@@ -206,6 +206,11 @@ namespace ghi
   {
     u32 binding;
     u32 count;
+
+    u32 pc_size{};
+    u32 pc_offset{};
+    bool is_push_constant{false};
+
     EShaderStage visibility;
     EDescriptorType type;
   } BindingLayoutEntry;
