@@ -209,9 +209,15 @@ namespace ghi
         .dynamicRendering = VK_TRUE,
     };
 
+    VkPhysicalDeviceVulkan12Features enable_vulkan12_features = {
+      .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
+      .pNext = &enable_vulkan13_features,
+      .runtimeDescriptorArray = VK_TRUE,
+    };
+
     VkPhysicalDeviceFeatures2 enable_device_features2{
         .sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2,
-        .pNext = &enable_vulkan13_features,
+        .pNext = &enable_vulkan12_features,
         .features =
             {
                 .fillModeNonSolid = true,
