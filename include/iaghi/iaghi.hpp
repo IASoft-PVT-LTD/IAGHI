@@ -306,8 +306,7 @@ namespace ghi
 
   auto create_buffers(Device device, u32 count, const BufferDesc *descs, Buffer *out_handles) -> Result<void>;
   auto destroy_buffers(Device device, u32 count, const Buffer *handles) -> void;
-  auto map_buffer(Device device, Buffer buffer) -> void *;
-  auto unmap_buffer(Device device, Buffer buffer) -> void;
+  auto upload_buffer_data(Device device, Buffer buffer, const void *data, u64 size, bool upload_to_all_frames = false) -> Result<void>;
 
   auto create_images(Device device, u32 count, const ImageDesc *descs, Image *out_handles) -> Result<void>;
   auto destroy_images(Device device, u32 count, Image *handles) -> void;

@@ -412,34 +412,45 @@ namespace ghi
     }
   }
 
-  auto VulkanBackend::map_buffer(Device device, Buffer buffer) -> void *
+  auto VulkanBackend::upload_buffer_data(Device device, Buffer buffer, const void *data, u64 size,
+                                         bool upload_to_all_frames) -> Result<void>
   {
     const auto dev = reinterpret_cast<VulkanDevice *>(device);
-
-    void *data{};
-
     const auto buf = reinterpret_cast<VulkanBuffer *>(buffer);
 
-    auto &buf_data = buf->get_data(buf->get_data_count() > 1 ? dev->get_swapchain().get_current_frame_index() : 0);
+    if (upload_to_all_frames)
+    {
+      for (u32 i = 0; i < buf->get_data_count(); i++)
+      {
+        auto &buf_data = buf->get_data(i);
+        void *mapped_ptr{};
+        if (buf_data.alloc_info.pMappedData)
+          mapped_ptr = buf_data.alloc_info.pMappedData;
+        else
+          vmaMapMemory(dev->get_allocator(), buf_data.allocation, &mapped_ptr);
 
-    if (buf_data.alloc_info.pMappedData)
-      return buf_data.alloc_info.pMappedData;
+        memcpy(mapped_ptr, data, size);
 
-    vmaMapMemory(dev->get_allocator(), buf_data.allocation, &data);
+        if (!buf_data.alloc_info.pMappedData)
+          vmaUnmapMemory(dev->get_allocator(), buf_data.allocation);
+      }
+    }
+    else
+    {
+      auto &buf_data = buf->get_data(buf->get_data_count() > 1 ? dev->get_swapchain().get_current_frame_index() : 0);
+      void *mapped_ptr{};
+      if (buf_data.alloc_info.pMappedData)
+        mapped_ptr = buf_data.alloc_info.pMappedData;
+      else
+        vmaMapMemory(dev->get_allocator(), buf_data.allocation, &mapped_ptr);
 
-    return data;
-  }
+      memcpy(mapped_ptr, data, size);
 
-  auto VulkanBackend::unmap_buffer(Device device, Buffer buffer) -> void
-  {
-    const auto dev = reinterpret_cast<VulkanDevice *>(device);
+      if (!buf_data.alloc_info.pMappedData)
+        vmaUnmapMemory(dev->get_allocator(), buf_data.allocation);
+    }
 
-    const auto buf = reinterpret_cast<VulkanBuffer *>(buffer);
-
-    auto &buf_data = buf->get_data(buf->get_data_count() > 1 ? dev->get_swapchain().get_current_frame_index() : 0);
-
-    if (!buf_data.alloc_info.pMappedData)
-      vmaUnmapMemory(dev->get_allocator(), buf_data.allocation);
+    return {};
   }
 
   auto VulkanBackend::create_images(Device device, u32 count, const ImageDesc *descs, Image *out_handles)

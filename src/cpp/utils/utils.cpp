@@ -132,11 +132,7 @@ namespace ghi::utils
     if (!initial_data)
       return buffer;
 
-    const auto ptr = ghi::map_buffer(device, g_staging_buffer);
-    if (!ptr)
-      return fail("failed to map staging buffer");
-    memcpy(ptr, initial_data, initial_data_size);
-    ghi::unmap_buffer(device, g_staging_buffer);
+    AU_TRY_DISCARD(ghi::upload_buffer_data(device, g_staging_buffer, initial_data, initial_data_size));
 
     AU_TRY_DISCARD(ghi::execute_single_time_commands(device, [&](CommandBuffer cmd) {
       ghi::cmd_copy_buffer(cmd, g_staging_buffer, buffer, initial_data_size, 0, 0);

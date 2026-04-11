@@ -72,14 +72,9 @@ namespace ghi
     backend.destroy_buffers(device, count, handles);
   }
 
-  auto map_buffer(Device device, Buffer buffer) -> void *
+  auto upload_buffer_data(Device device, Buffer buffer, const void *data, u64 size, bool upload_to_all_frames) -> Result<void>
   {
-    return backend.map_buffer(device, buffer);
-  }
-
-  auto unmap_buffer(Device device, Buffer buffer) -> void
-  {
-    backend.unmap_buffer(device, buffer);
+    return backend.upload_buffer_data(device, buffer, data, size, upload_to_all_frames);
   }
 
   auto create_images(Device device, u32 count, const ImageDesc *descs, Image *out_handles) -> Result<void>

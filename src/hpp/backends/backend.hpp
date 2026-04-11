@@ -31,8 +31,10 @@ namespace ghi
     {
       backend.destroy_buffers(std::declval<Device>(), std::declval<u32>(), std::declval<const Buffer *>())
     } -> std::same_as<void>;
-    { backend.map_buffer(std::declval<Device>(), std::declval<Buffer>()) } -> std::same_as<void *>;
-    { backend.unmap_buffer(std::declval<Device>(), std::declval<Buffer>()) } -> std::same_as<void>;
+    {
+      backend.upload_buffer_data(std::declval<Device>(), std::declval<Buffer>(), std::declval<void *>(),
+                                 std::declval<u64>(), std::declval<bool>())
+    } -> std::same_as<Result<void>>;
 
     {
       backend.create_images(std::declval<Device>(), std::declval<u32>(), std::declval<const ImageDesc *>(),
@@ -78,8 +80,12 @@ namespace ghi
     } -> std::same_as<Result<Shader>>;
     { backend.destroy_shader(std::declval<Device>(), std::declval<Shader>()) } -> std::same_as<void>;
 
-    { backend.resize_swapchain(std::declval<Device>(), std::declval<u32>(), std::declval<u32>()) } -> std::same_as<Result<void>>;
-    { backend.get_swapchain_extent(std::declval<Device>(), std::declval<u32 &>(), std::declval<u32 &>()) } -> std::same_as<void>;
+    {
+      backend.resize_swapchain(std::declval<Device>(), std::declval<u32>(), std::declval<u32>())
+    } -> std::same_as<Result<void>>;
+    {
+      backend.get_swapchain_extent(std::declval<Device>(), std::declval<u32 &>(), std::declval<u32 &>())
+    } -> std::same_as<void>;
     { backend.get_swapchain_format(std::declval<Device>()) } -> std::same_as<EFormat>;
 
     // { [IATODO]
