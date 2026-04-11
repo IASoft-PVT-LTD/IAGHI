@@ -1155,18 +1155,7 @@ namespace ghi
       -> void
   {
     const auto p = reinterpret_cast<VulkanGraphicsPipeline *>(pipeline);
-
-    const VkPushConstantsInfo push_constants_info{
-      .sType = VK_STRUCTURE_TYPE_PUSH_CONSTANTS_INFO,
-      .pNext = nullptr,
-      .layout = p->get_layout(),
-      .stageFlags = VK_SHADER_STAGE_ALL,
-      .offset = offset,
-      .size = size,
-      .pValues = data,
-    };
-
-    vkCmdPushConstants2(reinterpret_cast<VkCommandBuffer>(cmd), &push_constants_info);
+    vkCmdPushConstants(reinterpret_cast<VkCommandBuffer>(cmd), p->get_layout(), VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, offset, size, data);
   }
 
   auto VulkanBackend::cmd_bind_descriptor_table(CommandBuffer cmd, u32 set_index, Pipeline pipeline,
