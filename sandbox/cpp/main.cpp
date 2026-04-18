@@ -148,13 +148,11 @@ void main()
         },
         {&texture_binding_layout, &global_data_binding_layout, &per_frame_data_binding_layout}));
 
-    auto color_format = ghi::get_swapchain_format(device);
     ghi::GraphicsPipelineDesc pipeline_desc{
         .vertex_shader = vertex_shader,
         .fragment_shader = fragment_shader,
 
-        .color_formats = &color_format,
-        .color_attachment_count = 1,
+        .color_formats = {ghi::get_swapchain_format(device)},
         .depth_format = EFormat::D32Sfloat,
         .cull_mode = ECullMode::None,
 
@@ -225,8 +223,7 @@ void main()
       ghi::unmap_buffer(device, ubo_global_data_buffer);
     }
 
-    ghi::destroy_shader(device, vertex_shader);
-    ghi::destroy_shader(device, fragment_shader);
+    ghi::destroy_shaders(device, {vertex_shader, fragment_shader});
 
     Vec<glm::vec4> vertices = {
         {-0.5f, 0.5f, 0.0f, 0.0f},

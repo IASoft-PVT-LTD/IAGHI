@@ -106,9 +106,9 @@ namespace ghi
     return VulkanBackend::create_shader(device, spirv_code, size, stage);
   }
 
-  auto destroy_shader(Device device, Shader shader) -> void
+  auto destroy_shaders(Device device, Span<const Shader> shaders) -> void
   {
-    VulkanBackend::destroy_shader(device, shader);
+    VulkanBackend::destroy_shaders(device, shaders);
   }
 
   auto create_graphics_pipeline(Device device, const GraphicsPipelineDesc &desc) -> Result<Pipeline>

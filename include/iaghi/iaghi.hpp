@@ -265,8 +265,7 @@ namespace ghi
     Shader vertex_shader;
     Shader fragment_shader;
 
-    EFormat *color_formats;
-    u32 color_attachment_count;
+    Span<const EFormat> color_formats;
     EFormat depth_format;
 
     ECullMode cull_mode{ECullMode::Back};
@@ -352,7 +351,7 @@ namespace ghi
   auto update_descriptor_tables(Device device, Span<const DescriptorUpdate> updates) -> void;
 
   auto create_shader(Device device, const void *spirv_code, usize size, EShaderStage stage) -> Result<Shader>;
-  auto destroy_shader(Device device, Shader shader) -> void;
+  auto destroy_shaders(Device device, Span<const Shader> shaders) -> void;
 
   auto create_graphics_pipeline(Device device, const GraphicsPipelineDesc& desc) -> Result<Pipeline>;
   auto destroy_pipeline(Device device, Pipeline pipeline) -> void;

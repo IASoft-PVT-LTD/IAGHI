@@ -260,7 +260,7 @@ namespace ghi
     color_blending.pAttachments = &color_blend_attachment;
 
     Vec<VkFormat> color_attachments;
-    for (u32 i = 0; i < desc.color_attachment_count; ++i)
+    for (u32 i = 0; i < desc.color_formats.size(); ++i)
       color_attachments.push_back(VulkanBackend::map_format_enum_to_vk(desc.color_formats[i]));
 
     VkFormat depth_attachment_format = VulkanBackend::map_format_enum_to_vk(desc.depth_format);
@@ -308,7 +308,7 @@ namespace ghi
   }
 
   auto VulkanBackend::create_binding_layouts(Device device, Span<const Span<const BindingLayoutEntry>> entry_sets,
-                                             Span<BindingLayout* const> out_layouts) -> Result<void>
+                                             Span<BindingLayout *const> out_layouts) -> Result<void>
   {
     const auto dev = reinterpret_cast<VulkanDevice *>(device);
 
@@ -335,7 +335,7 @@ namespace ghi
   }
 
   auto VulkanBackend::create_descriptor_tables(Device device, bool is_frame_bound, BindingLayout layout,
-                                               Span<DescriptorTable* const> out_tables) -> Result<void>
+                                               Span<DescriptorTable *const> out_tables) -> Result<void>
   {
     const auto dev = reinterpret_cast<VulkanDevice *>(device);
 
@@ -443,12 +443,15 @@ namespace ghi
     return reinterpret_cast<Shader>(new VulkanShaderModule(std::move(shader)));
   }
 
-  auto VulkanBackend::destroy_shader(Device device, Shader shader) -> void
+  auto VulkanBackend::destroy_shaders(Device device, Span<const Shader> shaders) -> void
   {
     const auto dev = reinterpret_cast<VulkanDevice *>(device);
-    const auto shader_impl = reinterpret_cast<VulkanShaderModule *>(shader);
-    shader_impl->destroy(*dev);
-    delete shader_impl;
+    for (const auto &shader : shaders)
+    {
+      const auto shader_impl = reinterpret_cast<VulkanShaderModule *>(shader);
+      shader_impl->destroy(*dev);
+      delete shader_impl;
+    }
   }
 
   auto VulkanBackend::create_graphics_pipeline(Device device, const GraphicsPipelineDesc &desc) -> Result<Pipeline>

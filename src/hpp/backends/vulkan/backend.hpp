@@ -71,7 +71,7 @@ public:
     static auto update_descriptor_tables(Device device, Span<const DescriptorUpdate> updates) -> void;
 
     static auto create_shader(Device device, const void *spirv_code, usize size, EShaderStage stage) -> Result<Shader>;
-    static auto destroy_shader(Device device, Shader shader) -> void;
+    static auto destroy_shaders(Device device, Span<const Shader> shaders) -> void;
 
     static auto create_graphics_pipeline(Device device, const GraphicsPipelineDesc &desc) -> Result<Pipeline>;
     static auto destroy_pipeline(Device device, Pipeline pipeline) -> void;

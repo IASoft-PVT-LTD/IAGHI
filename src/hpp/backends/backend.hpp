@@ -67,7 +67,7 @@ namespace ghi
       BackendT::create_shader(std::declval<Device>(), std::declval<const void *>(), std::declval<usize>(),
                               std::declval<EShaderStage>())
     } -> std::same_as<Result<Shader>>;
-    { BackendT::destroy_shader(std::declval<Device>(), std::declval<Shader>()) } -> std::same_as<void>;
+    { BackendT::destroy_shaders(std::declval<Device>(), std::declval<Span<const Shader>>()) } -> std::same_as<void>;
 
     {
       BackendT::create_graphics_pipeline(std::declval<Device>(), std::declval<const GraphicsPipelineDesc &>())
