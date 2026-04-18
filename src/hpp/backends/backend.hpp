@@ -112,7 +112,8 @@ namespace ghi
                                       std::declval<bool>())
     } -> std::same_as<void>;
 
-    { BackendT::cmd_bind_pipeline(std::declval<CommandBuffer>(), std::declval<Pipeline>()) } -> std::same_as<void>;
+    { BackendT::cmd_begin_pipeline(std::declval<CommandBuffer>(), std::declval<Pipeline>()) } -> std::same_as<void>;
+    { BackendT::cmd_end_pipeline(std::declval<CommandBuffer>(), std::declval<Pipeline>()) } -> std::same_as<void>;
 
     {
       BackendT::cmd_push_constants(std::declval<CommandBuffer>(), std::declval<Pipeline>(), std::declval<u32>(),

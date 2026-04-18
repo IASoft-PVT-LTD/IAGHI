@@ -16,6 +16,7 @@
 #pragma once
 
 #include <backends/vulkan/backend.hpp>
+#include <backends/vulkan/image.hpp>
 
 namespace ghi
 {
@@ -66,6 +67,9 @@ namespace ghi
     static auto create(VulkanDevice& device, const GraphicsPipelineDesc& desc) -> Result<VulkanGraphicsPipeline>;
     auto destroy(VulkanDevice& device) -> void;
 
+    auto begin(VkCommandBuffer cmd) -> void;
+    auto end(VkCommandBuffer cmd) -> void;
+
     auto get_handle() const -> VkPipeline
     {
       return m_handle;
@@ -85,5 +89,10 @@ namespace ghi
     VulkanDevice* m_device{};
     VkPipeline m_handle{};
     VulkanPipelineLayout m_layout{};
+
+    bool m_target_swapchain{true};
+    bool m_enable_depth_test{true};
+    VulkanImage* m_depth_attachment{};
+    Vec<VulkanImage*> m_color_attachments;
   };
 }

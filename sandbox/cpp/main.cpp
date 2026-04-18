@@ -152,8 +152,6 @@ void main()
         .vertex_shader = vertex_shader,
         .fragment_shader = fragment_shader,
 
-        .color_formats = {ghi::get_swapchain_format(device)},
-        .depth_format = EFormat::D32Sfloat,
         .cull_mode = ECullMode::None,
 
         .binding_layouts = {global_data_binding_layout, per_frame_data_binding_layout, texture_binding_layout},
@@ -272,7 +270,7 @@ void main()
 
       const auto cmd = ghi::begin_frame(device);
 
-      ghi::cmd_bind_pipeline(cmd, pipeline);
+      ghi::cmd_begin_pipeline(cmd, pipeline);
 
       ghi::cmd_bind_descriptor_table(cmd, 0, pipeline, global_data_descriptor_table, {});
       ghi::cmd_bind_descriptor_table(cmd, 2, pipeline, texture_descriptor_table, {});
@@ -288,6 +286,8 @@ void main()
       ghi::cmd_push_constants(cmd, pipeline, 0, sizeof(glm::mat4), &m);
 
       ghi::cmd_draw_indexed(cmd, 6, 1, 0, 0, 0);
+
+      ghi::cmd_end_pipeline(cmd, pipeline);
 
       ghi::end_frame(device);
     }

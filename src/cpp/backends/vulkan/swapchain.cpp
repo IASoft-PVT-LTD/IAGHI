@@ -22,6 +22,8 @@ namespace ghi
   {
     VulkanSwapchain result{};
 
+    result.m_depth_format = VK_FORMAT_D32_SFLOAT_S8_UINT;
+
     VkSurfaceFormatKHR selected_surface_format{};
     Vec<VkSurfaceFormatKHR> surface_formats;
     VK_ENUM_CALL(vkGetPhysicalDeviceSurfaceFormatsKHR, surface_formats, device.m_physical_device, device.m_surface);
@@ -181,9 +183,9 @@ namespace ghi
           "Creating swapchain semaphore");
 
       m_frames[i].depth_image =
-          AU_TRY(VulkanImage::create(device.m_handle, device.m_allocator, VK_FORMAT_D32_SFLOAT,
+          AU_TRY(VulkanImage::create(device.m_handle, device.m_allocator, m_depth_format,
                                      {.width = m_extent.width, .height = m_extent.height, .depth = 1},
-                                     VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT));
+                                     VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT, VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT));
     }
 
     Vec<ImageBarrier> depth_barriers;

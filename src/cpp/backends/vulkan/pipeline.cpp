@@ -259,16 +259,38 @@ namespace ghi
     color_blending.attachmentCount = 1;
     color_blending.pAttachments = &color_blend_attachment;
 
-    Vec<VkFormat> color_attachments;
-    for (u32 i = 0; i < desc.color_formats.size(); ++i)
-      color_attachments.push_back(VulkanBackend::map_format_enum_to_vk(desc.color_formats[i]));
+    Vec<VkFormat> color_attachment_formats;
+    VkFormat depth_attachment_format = VK_FORMAT_UNDEFINED;
 
-    VkFormat depth_attachment_format = VulkanBackend::map_format_enum_to_vk(desc.depth_format);
+    if (desc.color_targets.empty())
+    {
+      color_attachment_formats.push_back(device.get_swapchain().get_color_format());
+      depth_attachment_format =
+          desc.enable_depth_test ? device.get_swapchain().get_depth_format() : VK_FORMAT_UNDEFINED;
+      result.m_color_attachments = Vec<VulkanImage *>{};
+      result.m_depth_attachment = {};
+      result.m_target_swapchain = true;
+    }
+    else
+    {
+      for (auto &color_target : desc.color_targets)
+      {
+        const auto &target = reinterpret_cast<VulkanImage *>(color_target);
+        color_attachment_formats.push_back(target->get_format());
+        result.m_color_attachments.push_back(target);
+      }
+      depth_attachment_format = desc.enable_depth_test
+                                    ? reinterpret_cast<VulkanImage *>(desc.depth_target)->get_format()
+                                    : VK_FORMAT_UNDEFINED;
+      result.m_depth_attachment = desc.enable_depth_test ? reinterpret_cast<VulkanImage *>(desc.depth_target) : nullptr;
+      result.m_target_swapchain = false;
+    }
+    result.m_enable_depth_test = desc.enable_depth_test;
 
     VkPipelineRenderingCreateInfo rendering_info{};
     rendering_info.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
-    rendering_info.colorAttachmentCount = color_attachments.size();
-    rendering_info.pColorAttachmentFormats = color_attachments.data();
+    rendering_info.colorAttachmentCount = color_attachment_formats.size();
+    rendering_info.pColorAttachmentFormats = color_attachment_formats.data();
     rendering_info.depthAttachmentFormat = depth_attachment_format;
 
     VkPipelineDepthStencilStateCreateInfo depth_stencil{};
@@ -305,6 +327,73 @@ namespace ghi
   {
     vkDestroyPipeline(device.get_handle(), m_handle, nullptr);
     m_layout.destroy(device);
+  }
+
+  auto VulkanGraphicsPipeline::begin(VkCommandBuffer cmd) -> void
+  {
+    Vec<VkRenderingAttachmentInfo> color_attachments;
+
+    VkRenderingAttachmentInfo depth_attachment_info{
+        .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+        .imageLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
+        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        .clearValue = {.depthStencil = {1.0f, 0}},
+    };
+
+    if (m_target_swapchain)
+    {
+      VkRenderingAttachmentInfo attachment_info{
+          .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+          .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+          .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+          .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+          .clearValue =
+              {
+                  .color = m_device->get_swapchain().get_clear_color(),
+              },
+      };
+      m_device->get_swapchain().get_backbuffer_views(attachment_info.imageView, depth_attachment_info.imageView);
+      color_attachments.push_back(attachment_info);
+    }
+    else
+    {
+      for (const auto &attachment : m_color_attachments)
+      {
+        color_attachments.push_back({
+            .sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO,
+            .imageView = attachment->get_view(),
+            .imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+            .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+            .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+            .clearValue =
+                {
+                    .color = m_device->get_swapchain().get_clear_color(),
+                },
+        });
+      }
+      depth_attachment_info.imageView = m_depth_attachment ? m_depth_attachment->get_view() : VK_NULL_HANDLE;
+    }
+
+    const VkRenderingInfo rendering_info{
+        .sType = VK_STRUCTURE_TYPE_RENDERING_INFO,
+        .renderArea =
+            {
+                .extent = m_device->get_swapchain().get_extent(),
+            },
+        .layerCount = 1,
+        .colorAttachmentCount = static_cast<u32>(color_attachments.size()),
+        .pColorAttachments = color_attachments.data(),
+        .pDepthAttachment = m_enable_depth_test ? &depth_attachment_info : nullptr,
+    };
+    vkCmdBeginRendering(cmd, &rendering_info);
+
+    vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, m_handle);
+  }
+
+  auto VulkanGraphicsPipeline::end(VkCommandBuffer cmd) -> void
+  {
+    vkCmdEndRendering(cmd);
   }
 
   auto VulkanBackend::create_binding_layouts(Device device, Span<const Span<const BindingLayoutEntry>> entry_sets,

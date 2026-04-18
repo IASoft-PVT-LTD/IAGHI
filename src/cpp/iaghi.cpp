@@ -29,7 +29,7 @@ namespace ghi
     VulkanBackend::destroy_device(device);
   }
 
-  auto create_buffers(Device device, Span<const BufferDesc> descs, Span<Buffer* const> out_handles) -> Result<void>
+  auto create_buffers(Device device, Span<const BufferDesc> descs, Span<Buffer *const> out_handles) -> Result<void>
   {
     return VulkanBackend::create_buffers(device, descs, out_handles);
   }
@@ -54,7 +54,7 @@ namespace ghi
     VulkanBackend::unmap_buffer(device, buffer);
   }
 
-  auto create_images(Device device, Span<const ImageDesc> descs, Span<Image* const> out_handles) -> Result<void>
+  auto create_images(Device device, Span<const ImageDesc> descs, Span<Image *const> out_handles) -> Result<void>
   {
     return VulkanBackend::create_images(device, descs, out_handles);
   }
@@ -70,7 +70,7 @@ namespace ghi
     return VulkanBackend::upload_image_data(device, handles, image_data, generate_mip_maps);
   }
 
-  auto create_samplers(Device device, Span<const SamplerDesc> descs, Span< Sampler* const> out_handles) -> Result<void>
+  auto create_samplers(Device device, Span<const SamplerDesc> descs, Span<Sampler *const> out_handles) -> Result<void>
   {
     return VulkanBackend::create_samplers(device, descs, out_handles);
   }
@@ -81,7 +81,7 @@ namespace ghi
   }
 
   auto create_binding_layouts(Device device, Span<const Span<const BindingLayoutEntry>> entry_sets,
-                              Span<BindingLayout* const> out_layouts) -> Result<void>
+                              Span<BindingLayout *const> out_layouts) -> Result<void>
   {
     return VulkanBackend::create_binding_layouts(device, entry_sets, out_layouts);
   }
@@ -91,7 +91,8 @@ namespace ghi
     VulkanBackend::destroy_binding_layouts(device, layouts);
   }
 
-  auto create_descriptor_tables(Device device, bool is_frame_bound, BindingLayout layout, Span<DescriptorTable* const> out_tables) -> Result<void>
+  auto create_descriptor_tables(Device device, bool is_frame_bound, BindingLayout layout,
+                                Span<DescriptorTable *const> out_tables) -> Result<void>
   {
     return VulkanBackend::create_descriptor_tables(device, is_frame_bound, layout, out_tables);
   }
@@ -191,9 +192,14 @@ namespace ghi
     VulkanBackend::cmd_bind_index_buffer(cmd, buffer, offset, use_32_bit_indices);
   }
 
-  auto cmd_bind_pipeline(CommandBuffer cmd, Pipeline pipeline) -> void
+  auto cmd_begin_pipeline(CommandBuffer cmd, Pipeline pipeline) -> void
   {
-    VulkanBackend::cmd_bind_pipeline(cmd, pipeline);
+    VulkanBackend::cmd_begin_pipeline(cmd, pipeline);
+  }
+
+  auto cmd_end_pipeline(CommandBuffer cmd, Pipeline pipeline) -> void
+  {
+    VulkanBackend::cmd_end_pipeline(cmd, pipeline);
   }
 
   auto cmd_push_constants(CommandBuffer cmd, Pipeline pipeline, u32 offset, u32 size, const void *data) -> void

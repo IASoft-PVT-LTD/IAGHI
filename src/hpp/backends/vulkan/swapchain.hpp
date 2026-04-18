@@ -39,18 +39,18 @@ public:
     };
 
 public:
-    static auto create(VulkanDevice& device, u32 width, u32 height) -> Result<VulkanSwapchain>;
-    auto destroy(VulkanDevice& device) -> void;
+    static auto create(VulkanDevice &device, u32 width, u32 height) -> Result<VulkanSwapchain>;
+    auto destroy(VulkanDevice &device) -> void;
 
-    auto recreate(VulkanDevice& device) -> Result<void>;
-    auto recreate(VulkanDevice& device, u32 width, u32 height) -> Result<void>;
+    auto recreate(VulkanDevice &device) -> Result<void>;
+    auto recreate(VulkanDevice &device, u32 width, u32 height) -> Result<void>;
 
-    auto advance_frame(VulkanDevice& device) -> bool;
+    auto advance_frame(VulkanDevice &device) -> bool;
 
-    auto present(VulkanDevice& device) -> void;
+    auto present(VulkanDevice &device) -> void;
 
-  public:
-    auto get_frame() -> Frame&
+public:
+    auto get_frame() -> Frame &
     {
       return m_frames[m_current_sync_frame_index];
     }
@@ -60,13 +60,13 @@ public:
       return m_extent;
     }
 
-    auto get_backbuffer_images(VkImage& color, VkImage& depth) const -> void
+    auto get_backbuffer_images(VkImage &color, VkImage &depth) const -> void
     {
       color = m_frames[m_current_frame_index].swapchain_image;
       depth = m_frames[m_current_frame_index].depth_image.get_handle();
     }
 
-    auto get_backbuffer_views(VkImageView& color, VkImageView& depth) const -> void
+    auto get_backbuffer_views(VkImageView &color, VkImageView &depth) const -> void
     {
       color = m_frames[m_current_frame_index].swapchain_image_view;
       depth = m_frames[m_current_frame_index].depth_image.get_view();
@@ -87,6 +87,16 @@ public:
       return {m_clear_color[0], m_clear_color[1], m_clear_color[2], m_clear_color[3]};
     }
 
+    [[nodiscard]] auto get_color_format() const -> VkFormat
+    {
+      return m_format;
+    }
+
+    [[nodiscard]] auto get_depth_format() const -> VkFormat
+    {
+      return m_depth_format;
+    }
+
     auto set_clear_color(f32 r, f32 g, f32 b, f32 a = 1.0f) -> void
     {
       m_clear_color[0] = r;
@@ -99,6 +109,7 @@ private:
     VkSwapchainKHR m_handle{};
     VkExtent2D m_extent{};
     VkFormat m_format{};
+    VkFormat m_depth_format{};
     VkColorSpaceKHR m_colorspace{};
     VkExtent2D m_min_extent{};
     VkExtent2D m_max_extent{};

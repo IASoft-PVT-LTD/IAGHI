@@ -265,9 +265,10 @@ namespace ghi
     Shader vertex_shader;
     Shader fragment_shader;
 
-    Span<const EFormat> color_formats;
-    EFormat depth_format;
+    Image depth_target{};
+    Span<const Image> color_targets{};
 
+    bool enable_depth_test{true};
     ECullMode cull_mode{ECullMode::Back};
     EBlendMode blend_mode{EBlendMode::Alpha};
     EPolygonMode polygon_mode{EPolygonMode::Fill};
@@ -377,7 +378,8 @@ namespace ghi
   auto cmd_bind_vertex_buffers(CommandBuffer cmd, u32 first_binding, Span<const Buffer> buffers, Span<const u64> offsets) -> void;
   auto cmd_bind_index_buffer(CommandBuffer cmd, Buffer buffer, u64 offset, bool use_32_bit_indices) -> void;
 
-  auto cmd_bind_pipeline(CommandBuffer cmd, Pipeline pipeline) -> void;
+  auto cmd_begin_pipeline(CommandBuffer cmd, Pipeline pipeline) -> void;
+  auto cmd_end_pipeline(CommandBuffer cmd, Pipeline pipeline) -> void;
 
   auto cmd_push_constants(CommandBuffer cmd, Pipeline pipeline, u32 offset, u32 size, const void *data) -> void;
 

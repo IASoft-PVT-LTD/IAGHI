@@ -98,7 +98,8 @@ public:
                                         Span<const u64> offsets) -> void;
     static auto cmd_bind_index_buffer(CommandBuffer cmd, Buffer buffer, u64 offset, bool use_32_bit_indices) -> void;
 
-    static auto cmd_bind_pipeline(CommandBuffer cmd, Pipeline pipeline) -> void;
+    static auto cmd_begin_pipeline(CommandBuffer cmd, Pipeline pipeline) -> void;
+    static auto cmd_end_pipeline(CommandBuffer cmd, Pipeline pipeline) -> void;
 
     static auto cmd_push_constants(CommandBuffer cmd, Pipeline pipeline, u32 offset, u32 size, const void *data)
         -> void;
@@ -123,6 +124,7 @@ public:
 
 public:
     static auto is_vk_depth_format(VkFormat format) -> bool;
+    static auto is_vk_depth_stencil_format(VkFormat format) -> bool;
     static auto map_format_enum_to_vk(EFormat format) -> VkFormat;
     static auto map_vk_to_format_enum(VkFormat format) -> EFormat;
     static auto map_shader_stage_enum_to_vk(EShaderStage stage) -> VkShaderStageFlags;
